@@ -1,0 +1,50 @@
+# Paths
+sinogram_path:    /home/john/Study_Data/ICD/testing_raw/acr_out.ptr
+output_dir:    /home/john/Study_Data/ICD/testing_output/
+initial_recon_path: /home/john/test  # useful to resume an ICD reconstruction if it was stopped too early
+#matrix_path: /home/john/Study_Data/ICD/output/matrix_john.bin
+
+# Scanner Geometry
+num_views_per_turn_without_ffs:    1152
+fov_radius:    12.5 # Acquisition FOV radius? 
+focal_spot_radius:    59.5
+source_detector_distance:    108.56
+anode_angle:    7.0
+axial_detector_spacing:    0.2189
+axial_focal_spot_shift:    0.0375
+center_channel_non_ffs:    366.25
+center_row:    7.5
+transaxial_detector_spacing:    0.12858
+transaxial_focal_spot_shift:    0.042698
+
+# Scan specific parameters
+table_feed_per_rotation:    1.92
+
+# Recon Geometry
+nx: 512 #64 #512
+ny: 512 #64 #512
+center_voxel_x: 255.5 #31.5 #255.5
+center_voxel_y: 255.5 #31.5 #255.5
+dx: 0.048828125 #.390625 #0.048828125
+dy: 0.048828125 #.390625 #0.048828125
+dz:    0.1
+
+# Iterative recon parameters
+lambda:    0.3
+system_memory_fraction:    0.75
+num_iterations:    200
+
+# John's additions (taken from WFBP format)
+# We make these explicit. This way, we are not dependent on them being
+# embedded in Raw data to perform a reconstruction. This is a fairly
+# substantial change over Stefano's implementation
+FileType: 1 # PTR File
+FileSubType: 0 # unused for anything other than IMA
+RawOffset: 0
+Readings: 6148
+Zffs:  0
+Phiffs: 0
+CollSlicewidth: 1.2
+Nrows: 16 
+n_channels: 736
+wfbp_initialize: 1 # Perform a WFBP reconstruction prior to running ICD iterations
