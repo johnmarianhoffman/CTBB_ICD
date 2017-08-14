@@ -14,6 +14,7 @@ namespace ublas = boost::numeric::ublas;
 #include "spinner.h"
 #include "recon_structs.h"
 #include "icd_iteration.h"
+#include "penalties.h"
 
 #define OMP_N_THREADS 8
 
@@ -45,26 +46,14 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
     ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
 
-    const int num_neighbors = 8;
-    std::vector<double> weights(num_neighbors);
-
-    weights[0] = 1 / sqrt(2.0);
-    weights[1] = 1.0;
-    weights[2] = 1 / sqrt(2.0);
-    weights[3] = 1.0;
-    weights[4] = 1.0;
-    weights[5] = 1 / sqrt(2.0);
-    weights[6] = 1.0;
-    weights[7] = 1 / sqrt(2.0);
-
-    double weights_scale = 0.0;
-    for (int i = 0; i < num_neighbors; i++){
-        weights_scale += weights[i];
-    }
-    
-    std::vector<int> neighbor_indices(num_neighbors);
-
     std::ifstream file(rp->matrix_path, std::ios_base::binary);
+
+    // Initialize iterative parameters
+    // Current implementation limited to 2D (hard coded)
+    struct iterative_params ip;
+    initialize_2d_weights(&ip);
+    ip.lambda = rp->lambda;
+    //ip.delta  = rp->delta; // What to do about this???
 
     for (int n = 0; n < rp->num_iterations; n++){
         
@@ -101,22 +90,8 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     //double alpha = inner_prod(col, col);
                     // tk This is just a constant. Should it be?
                     int k_off = (int)ceil(0.5*rp->beam_width_at_roi_edge / rp->voxel_size_z) + 1;
-
-                    //int k_off=0;
-
-                    // tk There doesn't seem to be any implicit
-                    // tk information about slice location contained in
-                    // tk this step.  It also seems like while the slice
-                    // tk thickness agrees well with WFBP, slice
-                    // tk locations are slightly different ultimately
-                    // tk causing some disparity between the two
-                    // tk reconstructions that we will need to resolve.
-                    // tk It's unclear whether this will need to be done
-                    // tk in the system matrix step or here in the
-                    // tk iteration step.
-
-                    //                   for (int k = 1; k < (rp->num_voxels_z - 1); k++){ // I am skipping edges, but those are still contained in the system matrix
-                    for (int k = 0; k < (rp->num_voxels_z); k++){ // I am skipping edges, but those are still contained in the system matrix                        
+                    
+                    for (int k = 0; k < (rp->num_voxels_z); k++){
 
                         /// Grab the Z slice locations (spatial+idx)
                         double curr_slice_location=data->slice_locations[k];
@@ -124,14 +99,11 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         
                         int q = q0 + rp->num_voxels_x*rp->num_voxels_y*k;
 
-                        //////// This is (one of) the key spot(s) to change location of reconstructed slice. Still missing some small detail though. tk
-                        //int offset = rp->views_per_slice*(k - k_off)*rp->n_channels*rp->Nrows_projection;                        
-                        //int offset = (central_idx - (rp->views_per_slice/2) - rp->views_per_slice*k_off)*rp->n_channels*rp->Nrows_projection;
-                        //int offset = central_idx*rp->n_channels*rp->Nrows_projection - (rp->views_per_slice/2)     - rp->views_per_slice*k_off*rp->n_channels*rp->Nrows_projection;
+                        // This is the key spot to select slice location (done via the "central_idx" variable)
                         int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
                         
                         double alpha = 0.0;
-                        double beta = 0.0;
+                        double beta  = 0.0;
 
 #pragma omp parallel num_threads(OMP_N_THREADS)
                         {
@@ -140,31 +112,26 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                                 int index = nonzeros[m].index + offset;
                                 
                                 if ((index > -1) && (index < data_size)){
-                                    alpha += nonzeros[m].value*nonzeros[m].value;
-                                    beta += nonzeros[m].value * ((double)data->raw[index] - sinogram_estimate[index]);
+                                    alpha += nonzeros[m].value * nonzeros[m].value;
+                                    beta  += nonzeros[m].value * ((double)data->raw[index] - sinogram_estimate[index]);
                                 }                                
                             }
                         }
 
-                        //First find the indices and weights of the neighbors for pixel q
-                        //q=i+NX*j+NX*NY*k
-
-                        //in-plane
-                        neighbor_indices[0] = q - rp->num_voxels_x - 1;
-                        neighbor_indices[1] = q - rp->num_voxels_x;
-                        neighbor_indices[2] = q - rp->num_voxels_x + 1;
-                        neighbor_indices[3] = q - 1;
-                        neighbor_indices[4] = q + 1;
-                        neighbor_indices[5] = q + rp->num_voxels_x - 1;
-                        neighbor_indices[6] = q + rp->num_voxels_x;
-                        neighbor_indices[7] = q + rp->num_voxels_x + 1;
-
-                        double sum1 = 0.0;
-                        for (int n = 0; n < num_neighbors; n++){
-                            sum1 += weights[n] * (reconstructed_image[neighbor_indices[n]] - reconstructed_image[q]);
+                        ip.alpha = alpha;
+                        ip.beta  = beta;
+                        
+                        // Apply selected penalty functions
+                        double pixel_update=0.0;
+                        if (true/* Quadratic */){
+                            pixel_update=quadratic(q,&ip,reconstructed_image);
                         }
-
-                        double pixel_update = (beta + rp->lambda*sum1) / (alpha + rp->lambda*weights_scale);
+                        else if(false/* Edge Preserving*/){
+                            pixel_update=edge_preserving(q,&ip,reconstructed_image);
+                        }
+                        else{
+                            std::cout << "Unrecognized penalty selected. Exiting." << std::endl;
+                        }
 
                         //Enforce positivity
                         if (pixel_update < -reconstructed_image[q])
