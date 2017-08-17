@@ -14,7 +14,7 @@ inline int sign(double x){
 }
 
 double func(double du, double alpha, double beta, double delta, double lambda, std::vector<double> &recon_volume,
-            double *wgts, std::size_t*neighbor_indices, int q, const int num_neighbors);
+            double *wgts, std::size_t*neighbor_indices, int q, const int num_neighbors,size_t array_size);
 
 void initialize_2d_weights(struct iterative_params *ip){
 
@@ -81,16 +81,20 @@ double edge_preserving(int curr_idx,struct iterative_params * ip, std::vector<do
     if (ip->alpha == 0.0)
         return 0.0; // TODO: should return sum1/sum2 for consistency with quadratic penalty
 
+    size_t array_size=ip->Nx*ip->Ny*ip->Nz;
+    
     double a = ip->beta / ip->alpha;
     double b = ip->beta / ip->alpha;
 
     for (int i = 0; i<ip->num_neighbors; i++){
-        double diff = (recon_volume[neighbor_indices[i]] - recon_volume[curr_idx]);
+        if (neighbor_indices[i]>=0 && neighbor_indices[i]<array_size){
+            double diff = (recon_volume[neighbor_indices[i]] - recon_volume[curr_idx]);
         
-        if (diff < a)
-            a = diff;
-        if (diff > b)
-            b = diff;
+            if (diff < a)
+                a = diff;
+            if (diff > b)
+                b = diff;
+        }
     }
 
     int max_iterations = 1000000;
@@ -100,8 +104,8 @@ double edge_preserving(int curr_idx,struct iterative_params * ip, std::vector<do
 
         double c = (a+b)/2.0;
 
-        double f_c=func(c,ip->alpha,ip->beta,ip->delta,ip->lambda,recon_volume,ip->weights,neighbor_indices,curr_idx,ip->num_neighbors);
-        double f_a=func(a,ip->alpha,ip->beta,ip->delta,ip->lambda,recon_volume,ip->weights,neighbor_indices,curr_idx,ip->num_neighbors);
+        double f_c=func(c,ip->alpha,ip->beta,ip->delta,ip->lambda,recon_volume,ip->weights,neighbor_indices,curr_idx,ip->num_neighbors,array_size);
+        double f_a=func(a,ip->alpha,ip->beta,ip->delta,ip->lambda,recon_volume,ip->weights,neighbor_indices,curr_idx,ip->num_neighbors,array_size);
 
         if (( f_c == 0) || (b-a)/2<tol)            
             return c;        
@@ -115,14 +119,16 @@ double edge_preserving(int curr_idx,struct iterative_params * ip, std::vector<do
 }
 
 double func(double du, double alpha, double beta, double delta, double lambda, std::vector<double> &recon_volume,
-            double *wgts, std::size_t *neighbor_indices, int q, int num_neighbors){
+            double *wgts, std::size_t *neighbor_indices, int q, int num_neighbors,size_t array_size){
 	double sum = 0;
 	for (int i = 0; i < num_neighbors; i++){
+            if (neighbor_indices[i]>=0 && neighbor_indices[i]<array_size){
 		double t = (du - (recon_volume[neighbor_indices[i]] - recon_volume[q]));
 		if (t >= 0)
-			sum = sum + wgts[i] * (1.0 - 1.0 / (1.0 + fabs(t/delta)));
+                    sum = sum + wgts[i] * (1.0 - 1.0 / (1.0 + fabs(t/delta)));
 		else
-			sum = sum - wgts[i] * (1.0 - 1.0 / (1.0 + fabs(t/delta)));
+                    sum = sum - wgts[i] * (1.0 - 1.0 / (1.0 + fabs(t/delta)));
+            }
 	}
 	return 2 * alpha*du - 2 * beta + lambda*sum;
 }
