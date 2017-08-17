@@ -22,16 +22,8 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
     size_t data_size = rp->Readings*rp->n_channels*rp->Nrows_projection;
     
-    //std::vector<float> data(rp->Readings*rp->n_channels*rp->Nrows_projection, 0.0f);
-    //size_t data_size = data.size();
-    //std::cout << "Theoretical Size: "  << rp->Readings*rp->n_channels*rp->Nrows << std::endl;
-    //std::cout << "Actual size: " << data_size << std::endl;
-    //std::cout << "Exiting." << std::endl;
-    
-    //load_all_frames(data); // ?????? Loads data (we have already done this...)
-
     // Allocate sinogram estimate (all zeros)
-    std::vector<double> sinogram_estimate(rp->Readings*rp->n_channels*rp->Nrows_projection, 0.0);
+    double * sinogram_estimate = new double[rp->Readings*rp->n_channels*rp->Nrows_projection]();
     std::vector<double> reconstructed_image(rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z, 0.0);
 
     // Copy the float recon volume into the vector array (if uninitialized, will just copy zeros);
@@ -40,13 +32,76 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
             for (int k=0; k<rp->num_voxels_z; k++){
                 size_t idx=i+j*rp->num_voxels_x+k*rp->num_voxels_x*rp->num_voxels_y;
                 reconstructed_image[idx]=(double)data->recon_volume[idx];
-            }            
-        }        
+            }
+        }
     }
 
-    ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
-
     std::ifstream file(rp->matrix_path, std::ios_base::binary);
+    
+    // If WFBP was used to inialize the reconstructions, we need to initialize our sinogram estimate.
+    if (rp->wfbp_initialize){
+        std::cout << "Initializing sinogram estimate..." << std::endl;       
+
+        // run a forward projection to initialize
+        init_spinner();
+        for (int j=0; j<rp->num_voxels_y; j++){
+            update_spinner(j,rp->num_voxels_x);
+            for (int i=0; i<rp->num_voxels_x; i++){        
+                // Extract column of projection matrix
+                size_t nnz;
+                file.read((char*)&nnz, sizeof(nnz));                
+                int num_nonzeros = (int)nnz; // cast to int to avoid potential issues
+                struct pair{
+                    int index;
+                    float value;
+                };
+                std::vector<pair> nonzeros(num_nonzeros);
+                if (num_nonzeros > 0)
+                    file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
+
+                // Loop over all slices for current x,y
+                for (int k=0; k<rp->num_voxels_z; k++){
+        
+                    size_t central_idx=data->slice_indices[k];
+        
+                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
+        
+                    for (int m = 0; m<num_nonzeros; m++){
+                        int index = nonzeros[m].index + offset; // Raw data index
+                        if ((index > -1) && (index < data_size)){
+                            size_t voxel_idx=i+j*rp->num_voxels_x+k*rp->num_voxels_x*rp->num_voxels_y;
+                            sinogram_estimate[index] = sinogram_estimate[index] + reconstructed_image[voxel_idx]*nonzeros[m].value;
+                        }
+                    }
+                }
+            }            
+        }
+        destroy_spinner();
+        file.clear();
+        file.seekg(0, std::ios_base::beg);
+    }
+
+    /// tk debugging:
+    // Write reconstruction to disk
+    std::ostringstream recon_path;       
+    recon_path << rp->output_dir << "/reconstructions/iteration_init" << ".rcn";        
+    std::ofstream recon_file(recon_path.str(), std::ios_base::binary);
+    recon_file.write((char*)&reconstructed_image[0], rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z*sizeof(reconstructed_image[0]));
+    recon_file.close();
+    std::cout << "Wrote initial image to disk." << std::endl;
+        
+    // Write reconstruction to disk
+    std::ostringstream sino_est_path;       
+    sino_est_path << rp->output_dir << "/reconstructions/sino_estimation" << ".rcn";
+    std::ofstream sino_file(sino_est_path.str(), std::ios_base::binary);
+    sino_file.write((char*)sinogram_estimate, rp->Readings*rp->Nrows_projection*rp->n_channels*sizeof(double));
+    sino_file.close();
+    std::cout << "Wrote initial sinogram to disk." << std::endl;    
+
+    //tk end debugging
+    
+
+    ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
 
     // Initialize iterative parameters
     // Current implementation limited to 2D (hard coded)
@@ -63,7 +118,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         init_spinner();
         for (int j = 0; j < rp->num_voxels_y; j++){
             update_spinner(j,rp->num_voxels_y);
-            double y = (j - rp->center_voxel_y)*rp->voxel_size_y;            
+            double y = (j - rp->center_voxel_y)*rp->voxel_size_y;
             for (int i = 0; i < rp->num_voxels_x; i++){
 
                 double x = (i - rp->center_voxel_x)*rp->voxel_size_x;
@@ -87,11 +142,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
                     int q0 = i + rp->num_voxels_x*j;
 
-                    //double alpha = inner_prod(col, col);
-                    // tk This is just a constant. Should it be?
-                    int k_off = (int)ceil(0.5*rp->beam_width_at_roi_edge / rp->voxel_size_z) + 1;
-                    
-                    for (int k = 0; k < (rp->num_voxels_z); k++){
+                    for (int k = 0; k < (rp->num_voxels_z); k++){ 
 
                         /// Grab the Z slice locations (spatial+idx)
                         double curr_slice_location=data->slice_locations[k];
@@ -134,9 +185,9 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         }
 
                         //Enforce positivity
-                        if (pixel_update < -reconstructed_image[q])
+                        if (pixel_update+reconstructed_image[q]<0)
                             pixel_update = -reconstructed_image[q];
-
+                        
                         //Update image
                         reconstructed_image[q] += pixel_update;
 
@@ -164,16 +215,6 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         std::chrono::high_resolution_clock::time_point end=std::chrono::high_resolution_clock::now();
         auto duration=std::chrono::duration_cast<std::chrono::seconds>(end-start).count();
         std::cout << duration << " s" << std::endl;
-
-        //// debug
-        //std::ofstream debug_outfile("/home/john/Desktop/debug_file.bin",std::ios_base::binary | std::ios::out);
-        //std::cout << "Number of elements: " << rp->n_channels*rp->Nrows_projection*rp->Readings << std::endl;
-        //std::cout << "N channels: " << rp->n_channels << std::endl;
-        //std::cout << "N_rows: " << rp->Nrows_projection << std::endl;
-        //std::cout << "N_projections: " << rp->Readings  <<  std::endl;
-        //debug_outfile.write((char*)&sinogram_estimate[0],rp->n_channels*rp->Nrows_projection*rp->Readings*sizeof(double));
-        //debug_outfile.close();
-        //std::cout << "Debug file written to desktop." << std::endl;
 
         // Write reconstruction to disk
         std::ostringstream recon_path;       
