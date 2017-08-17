@@ -81,10 +81,10 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         file.seekg(0, std::ios_base::beg);
     }
 
-    /// tk debugging:
-    // Write reconstruction to disk
+
+    // Write pre-iteration reconstruction to disk 
     std::ostringstream recon_path;       
-    recon_path << rp->output_dir << "/reconstructions/iteration_init" << ".rcn";        
+    recon_path << rp->output_dir << "/reconstructions/iteration0.rcn";
     std::ofstream recon_file(recon_path.str(), std::ios_base::binary);
     recon_file.write((char*)&reconstructed_image[0], rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z*sizeof(reconstructed_image[0]));
     recon_file.close();
@@ -218,7 +218,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
         // Write reconstruction to disk
         std::ostringstream recon_path;       
-        recon_path << rp->output_dir << "/reconstructions/iteration" << n << ".rcn";        
+        recon_path << rp->output_dir << "/reconstructions/iteration" << n+1 << ".rcn";
         std::ofstream recon_file(recon_path.str(), std::ios_base::binary);
         recon_file.write((char*)&reconstructed_image[0], rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z*sizeof(reconstructed_image[0]));
         recon_file.close();
