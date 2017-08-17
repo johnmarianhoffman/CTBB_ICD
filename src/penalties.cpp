@@ -1,3 +1,4 @@
+#include <iostream>
 #include <vector>
 #include <math.h>
 
@@ -53,8 +54,10 @@ double quadratic(int curr_idx,struct iterative_params * ip, std::vector<double> 
     neighbor_indices[7] = curr_idx + ip->Nx + 1;
 
     double sum = 0.0;
+    size_t array_size=ip->Nx*ip->Ny*ip->Nz;
     for (int i = 0; i < ip->num_neighbors; i++){
-        sum += ip->weights[i] * (recon_volume[neighbor_indices[i]] - recon_volume[curr_idx]);
+        if (neighbor_indices[i]>=0 && neighbor_indices[i]<array_size)
+            sum += ip->weights[i] * (recon_volume[neighbor_indices[i]] - recon_volume[curr_idx]);
     }
 
     // Return amount by which pixel will be updated

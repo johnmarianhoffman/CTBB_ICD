@@ -3,8 +3,9 @@
 #include <vector>
 
 struct iterative_params{
-    int Nx;
-    int Ny;
+    size_t Nx;
+    size_t Ny;
+    size_t Nz;
     double alpha;
     double beta;
     double lambda;

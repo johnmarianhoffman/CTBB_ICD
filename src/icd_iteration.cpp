@@ -108,11 +108,14 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     struct iterative_params ip;
     initialize_2d_weights(&ip);
     ip.lambda = rp->lambda;
+    ip.Nx=rp->num_voxels_x;
+    ip.Ny=rp->num_voxels_y;
+    ip.Nz=rp->num_voxels_z;    
     //ip.delta  = rp->delta; // What to do about this???
 
     for (int n = 0; n < rp->num_iterations; n++){
         
-        std::cout << "Iteration #" << n << std::endl;
+        std::cout << "Iteration #" << n+1 << std::endl;
         std::chrono::high_resolution_clock::time_point start=std::chrono::high_resolution_clock::now();
 
         init_spinner();
