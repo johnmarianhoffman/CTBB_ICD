@@ -69,16 +69,6 @@ int main(int argc, char ** argv){
     // Perform wFBP reconstruction if using as input to ICD
     initialize_recon_volume(&rp_const,&data);
 
-    //std::ofstream debug_outfile("/home/john/Desktop/debug_file.bin",std::ios_base::binary | std::ios::out);
-    //std::cout << "Number of elements: " << 512*512*120 << std::endl;
-    //debug_outfile.write((char*)&data.recon_volume[0],512*512*120*sizeof(float));
-    //debug_outfile.close();
-    //std::cout << "Debug file written to desktop." << std::endl;
-
-    //tk
-    //clean_up(&rp,&data);
-    //exit(1);
-    
     /*--- Generate system matrix (generate_system_matrix.cpp) ---*/
     // If matrix file does not exist, generate
     if (!exists(rp_const.matrix_path)){
@@ -89,6 +79,12 @@ int main(int argc, char ** argv){
         std::cout << "Existing matrix file FOUND." << std::endl;
         std::cout << "Using matrix file: " << rp_const.matrix_path << std::endl;
     }
+
+    std::ofstream debug_outfile("/home/john/Desktop/debug_file.bin",std::ios_base::binary | std::ios::out);
+    std::cout << "Number of elements: " << rp.nx*rp.ny*rp.num_voxels_z << std::endl;
+    debug_outfile.write((char*)&data.recon_volume[0],rp.nx*rp.ny*rp.num_voxels_z*sizeof(float));
+    debug_outfile.close();
+    std::cout << "Debug file written to desktop." << std::endl;
 
     /*--- Perform ICD iterations (icd_iteration.cpp) ---*/
     icd_iteration(&rp_const,&data);

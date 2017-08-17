@@ -9,6 +9,7 @@ src/obj/*
 DefintionPTRFile.h
 include
 generate_system_matrix_eigen.cpp
+tests/
 
 #executables
 icd
