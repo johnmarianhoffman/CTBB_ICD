@@ -65,13 +65,17 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     size_t central_idx=data->slice_indices[k];
         
                     int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
-        
+
+#pragma omp parallel num_threads(OMP_N_THREADS)
+                    {
+#pragma omp for
                     for (int m = 0; m<num_nonzeros; m++){
                         int index = nonzeros[m].index + offset; // Raw data index
                         if ((index > -1) && (index < data_size)){
                             size_t voxel_idx=i+j*rp->num_voxels_x+k*rp->num_voxels_x*rp->num_voxels_y;
                             sinogram_estimate[index] = sinogram_estimate[index] + reconstructed_image[voxel_idx]*nonzeros[m].value;
                         }
+                    }
                     }
                 }
             }            
@@ -111,7 +115,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     ip.Nx=rp->num_voxels_x;
     ip.Ny=rp->num_voxels_y;
     ip.Nz=rp->num_voxels_z;    
-    //ip.delta  = rp->delta; // What to do about this???
+    ip.delta  = rp->delta;
 
     for (int n = 0; n < rp->num_iterations; n++){
         
@@ -177,14 +181,17 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         
                         // Apply selected penalty functions
                         double pixel_update=0.0;
-                        if (true/* Quadratic */){
+                        /* Quadratic */
+                        if (rp->penalty.compare("quadratic")){
                             pixel_update=quadratic(q,&ip,reconstructed_image);
                         }
-                        else if(false/* Edge Preserving*/){
+                        /* Edge Preserving*/
+                        else if(rp->penalty.compare("edge-preserving")){
                             pixel_update=edge_preserving(q,&ip,reconstructed_image);
                         }
                         else{
                             std::cout << "Unrecognized penalty selected. Exiting." << std::endl;
+                            exit(1);
                         }
 
                         //Enforce positivity

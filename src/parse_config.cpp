@@ -41,7 +41,9 @@ void parse_config(std::string config_file, struct recon_params * rp){
     parse_item(transaxial_focal_spot_shift,double);
 
     // Iterative Recon parameters
+    parse_item(penalty,std::string);
     parse_item(lambda,double);
+    parse_item(delta,double);
     parse_item(num_iterations,size_t);
     parse_item(num_views_for_system_matrix,size_t);
 

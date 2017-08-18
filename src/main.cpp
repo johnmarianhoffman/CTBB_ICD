@@ -20,7 +20,6 @@ void usage(){
     printf("usage: ctbb_icd [options] input_prm_file\n\n");
     printf("    Options:\n");
     printf("          -v: verbose.\n");
-    printf("          -t: test files will be written to desktop.\n");
     printf("    --timing: Display timing information for each step of the recon process\n");
     printf("\n");
     printf("Copyright Stefano Young, John Hoffman 2017\n\n");
