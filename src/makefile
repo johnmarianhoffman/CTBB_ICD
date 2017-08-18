@@ -11,7 +11,7 @@ LIBS=-lm -lyaml-cpp -lctbb_read
 
 CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11
 
-_OBJ=main.o parse_config.o setup.o generate_system_matrix.o initialize_recon_volume.o icd_iteration.o rotate_slices.o
+_OBJ=main.o parse_config.o setup.o generate_system_matrix.o initialize_recon_volume.o icd_iteration.o rotate_slices.o penalties.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../icd
@@ -41,6 +41,9 @@ obj/icd_iteration.o: icd_iteration.cpp icd_iteration.h recon_structs.h
 	$(CC) $(CFLAGS) -c -fopenmp -o $@ $<
 
 obj/rotate_slices.o: rotate_slices.cpp rotate_slices.h recon_structs.h interp.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+obj/penalties.o: penalties.cpp penalties.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 .PHONY: all test clean object_dir

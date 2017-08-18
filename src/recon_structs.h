@@ -29,7 +29,9 @@ struct recon_params {
     double transaxial_focal_spot_shift; // cm 
 
     // Iterative recon parameters
+    std::string penalty;                // Either "quadratic" or "edge-preserving"
     double lambda;                      // Regularizer parameter
+    double delta;                       // Edge-preserving parameter. (0.005 is a good value).
     size_t num_iterations;
 
     // Scan specific parameters

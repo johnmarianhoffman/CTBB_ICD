@@ -196,7 +196,7 @@ void build_wfbp_parameter_file(const struct recon_params * rp){
     wfbp_parameter_fid << "RawDataFile: "             << split_filename(rp->sinogram_path) << std::endl;
     wfbp_parameter_fid << "OutputDir: "               << rp->output_dir                    << std::endl;
     wfbp_parameter_fid << "OutputFile: "              << "init_wfbp.img"                   << std::endl;
-    wfbp_parameter_fid << "ReconKernel: "             << "3"                               << std::endl;
+    wfbp_parameter_fid << "ReconKernel: "             << "1"                               << std::endl;
     wfbp_parameter_fid << "SliceThickness: "          << rp->slice_thickness*10.0          << std::endl;
     wfbp_parameter_fid << "AdaptiveFiltration: "      << "1.0"                             << std::endl;
     /// done

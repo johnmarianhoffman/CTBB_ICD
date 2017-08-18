@@ -33,6 +33,10 @@
     std::cout << #TAG_NAME" was not explicitly set in parameter file. Using default value: "#DEFAULT_VALUE << std::endl;\
     rp.TAG_NAME=DEFAULT_VALUE;}
 
+#define check_string_with_default(TAG_NAME,DEFAULT_VALUE) if (strcmp(rp.TAG_NAME.c_str(),"")==0){ \
+    std::cout << #TAG_NAME" was not explicitly set in parameter file. Using default value: "#DEFAULT_VALUE << std::endl;\
+    rp.TAG_NAME=DEFAULT_VALUE;}
+
 inline bool exists(const std::string& name){
     std::ifstream f(name.c_str());
     return f.good();
@@ -114,7 +118,9 @@ struct recon_params configure_recon_params(std::string filename){
     check_with_default(slice_thickness,1.0);
 
     // Required Iterative parameters
+    check_string_with_default(penalty,"quadratic");
     check_with_default(lambda,0.3);
+    check_with_default(delta,0.005);
     size_t_check(num_iterations);
 
     // John's Addition's
@@ -135,6 +141,15 @@ struct recon_params configure_recon_params(std::string filename){
     // double_check(dz);
     // check_with_default(center_voxel_x,0.0);
     // check_with_default(center_voxel_y,0.0);
+
+    // Non-macro-able other checks we need to perform
+    // Penalty function
+    if ((strcmp(rp.penalty.c_str(),"quadratic")!=0)&&
+        (strcmp(rp.penalty.c_str(),"edge-preserving")!=0)){
+        std::cout << "Requesting penalty function, \"" << rp.penalty << "\", is invalid." << std::endl;
+        std::cout << "Valid choices are \"quadratic\" or \"edge-preserving\" (without quotes)" << std::endl;
+        exit_flag=true;
+    }
 
     if (exit_flag){
         std::cout << "Missing some required parameters.  Please review the parameter file. Exiting." << std::endl;
