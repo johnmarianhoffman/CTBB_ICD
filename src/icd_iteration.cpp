@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <math.h>
 
 #include <chrono>
 
@@ -24,7 +25,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     
     // Allocate sinogram estimate (all zeros)
     double * sinogram_estimate = new double[rp->Readings*rp->n_channels*rp->Nrows_projection]();
-    std::vector<double> reconstructed_image(rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z, 0.0);
+    double * reconstructed_image= new double[rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z];
 
     // Copy the float recon volume into the vector array (if uninitialized, will just copy zeros);
     for (int i=0; i<rp->num_voxels_x; i++){
@@ -103,7 +104,6 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     std::cout << "Wrote initial sinogram to disk." << std::endl;    
 
     //tk end debugging
-    
 
     ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
 
@@ -121,6 +121,8 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         
         std::cout << "Iteration #" << n+1 << std::endl;
         std::chrono::high_resolution_clock::time_point start=std::chrono::high_resolution_clock::now();
+
+        double fov_limit=(rp->acquisition_fov/2.0)*(rp->acquisition_fov/2.0);
 
         init_spinner();
         for (int j = 0; j < rp->num_voxels_y; j++){
@@ -140,12 +142,14 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     float value;
                 };
 
-                std::vector<pair> nonzeros(num_nonzeros);
+                //std::vector<pair> nonzeros(num_nonzeros);
+
+                struct pair * nonzeros = new struct pair[num_nonzeros];
 
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
 
-                if ((x*x + y*y) < (rp->fov_radius*rp->fov_radius)){
+                if ((x*x + y*y) < fov_limit){
 
                     int q0 = i + rp->num_voxels_x*j;
 
