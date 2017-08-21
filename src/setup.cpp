@@ -260,10 +260,13 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
             break;}
     case 4:{; //IMA (can wrap any of the above (except binary)
             int raw_data_subtype=rp->FileSubType; // Determine if we're looking for PTR or CTD
+
+
       
             for (int i=0;i<rp->Readings;i++){
                 data->tube_angles[i]=(double)ReadIMATubeAngle(raw_file,i,rp->n_channels,rp->Nrows_projection,raw_data_subtype,rp->RawOffset);
                 data->table_positions[i]=((double)ReadIMATablePosition(raw_file,i,rp->n_channels,rp->Nrows_projection,raw_data_subtype,rp->RawOffset))/1000.0;
+                ReadIMAFrame(raw_file,i,rp->n_channels,rp->Nrows_projection,&data->raw[i*rp->n_channels*rp->Nrows_projection],raw_data_subtype,rp->RawOffset);
             }
 
             // <0 is decreasing table position >0 is increasing
