@@ -17,7 +17,7 @@ namespace ublas = boost::numeric::ublas;
 #include "icd_iteration.h"
 #include "penalties.h"
 
-#define OMP_N_THREADS 8
+#define OMP_N_THREADS 11
 
 void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
@@ -56,7 +56,9 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     int index;
                     float value;
                 };
-                std::vector<pair> nonzeros(num_nonzeros);
+                //std::vector<pair> nonzeros(num_nonzeros);
+
+                struct pair * nonzeros = new struct pair[num_nonzeros];
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
 
@@ -79,6 +81,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     }
                     }
                 }
+                delete[] nonzeros;
             }            
         }
         destroy_spinner();
@@ -219,7 +222,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
                     }
                 }
-
+                delete[] nonzeros;
             }
         }
 
