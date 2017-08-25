@@ -189,11 +189,11 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         // Apply selected penalty functions
                         double pixel_update=0.0;
                         /* Quadratic */
-                        if (rp->penalty.compare("quadratic")){
+                        if (rp->penalty.compare("quadratic")==0){
                             pixel_update=quadratic(q,&ip,reconstructed_image);
                         }
                         /* Edge Preserving*/
-                        else if(rp->penalty.compare("edge-preserving")){
+                        else if(rp->penalty.compare("edge-preserving")==0){
                             pixel_update=edge_preserving(q,&ip,reconstructed_image);
                         }
                         else{
