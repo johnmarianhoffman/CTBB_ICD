@@ -11,7 +11,7 @@ LIBS=-lm -lyaml-cpp -lctbb_read
 
 CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11
 
-_OBJ=main.o parse_config.o setup.o generate_system_matrix.o initialize_recon_volume.o icd_iteration.o rotate_slices.o penalties.o
+_OBJ=main.o parse_config.o setup.o generate_system_matrix.o generate_system_matrix_ffs.o initialize_recon_volume.o icd_iteration.o rotate_slices.o penalties.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../icd
@@ -32,6 +32,9 @@ obj/setup.o: setup.cpp setup.h recon_structs.h parse_config.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 obj/generate_system_matrix.o: generate_system_matrix.cpp generate_system_matrix.h recon_structs.h
+	$(CC) $(CFLAGS) $(INCLUDES) -c -fopenmp -o $@ $<
+
+obj/generate_system_matrix_ffs.o: generate_system_matrix_ffs.cpp generate_system_matrix_ffs.h recon_structs.h
 	$(CC) $(CFLAGS) $(INCLUDES) -c -fopenmp -o $@ $<
 
 obj/initialize_recon_volume.o: initialize_recon_volume.cpp initialize_recon_volume.h recon_structs.h

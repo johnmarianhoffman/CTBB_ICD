@@ -166,6 +166,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
                         // This is the key spot to select slice location (done via the "central_idx" variable)
                         int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
+                        // Ensure that offset%4==0
                         
                         double alpha = 0.0;
                         double beta  = 0.0;

@@ -105,6 +105,7 @@ struct recon_params configure_recon_params(std::string filename){
     double_check(center_row);
     double_check(transaxial_detector_spacing);
     double_check(transaxial_focal_spot_shift);
+    double_check(fan_angle_increment);
 
     // Required Scan Specifics
     double_check(table_feed_per_rotation);
@@ -173,7 +174,10 @@ struct recon_params configure_recon_params(std::string filename){
     rp.num_voxels_z = rp.nz;
 
     std::cout << "voxel_size_z (prior): " << rp.voxel_size_z << std::endl;
-    
+
+    // Note: Num_views_per_turn ACCOUNTS for flying focal spot.
+    //       This will automatically adjust tube_angle_increment
+    //       and num_views_for_system_matrix as needed.
     rp.num_views_per_turn = rp.num_views_per_turn_without_ffs*(size_t)pow(2.0,(double)rp.Zffs)*(size_t)pow(2.0,(double)rp.Phiffs);
     rp.tube_angle_increment = 2.0*PI/rp.num_views_per_turn;
     rp.tube_z_increment   = rp.table_feed_per_rotation/rp.num_views_per_turn;

@@ -31,7 +31,7 @@ void save_system_matrix_first_block(const struct recon_params * rp,std::vector<u
 void       save_system_matrix_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block);
 
 void generate_system_matrix(const struct recon_params * rp, struct ct_data * data){
-    std::cout << "Generating system matrix..." << std::endl;
+    std::cout << "Generating system matrix (no flying focal spots)..." << std::endl;
 
     ublas::vector<double> source_position(3);
     ublas::vector<double> direction_cosine(3);

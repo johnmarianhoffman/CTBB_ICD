@@ -6,6 +6,7 @@
 #include "setup.h"
 #include "initialize_recon_volume.h"
 #include "generate_system_matrix.h"
+#include "generate_system_matrix_ffs.h"
 #include "rotate_slices.h"
 #include "icd_iteration.h"
 
@@ -81,7 +82,10 @@ int main(int argc, char ** argv){
     // If matrix file does not exist, generate
     if (!exists(rp_const.matrix_path)){
         std::cout << "No existing matrix file found for reconstruction." << std::endl;
-        generate_system_matrix(&rp_const,&data);
+        if (!rp_const.Zffs && !rp_const.Phiffs)
+            generate_system_matrix(&rp_const,&data);
+        else
+            generate_system_matrix_ffs(&rp_const,&data);
     }
     else{
         std::cout << "Existing matrix file FOUND." << std::endl;

@@ -39,6 +39,7 @@ void parse_config(std::string config_file, struct recon_params * rp){
     parse_item(source_detector_distance,double);
     parse_item(transaxial_detector_spacing,double);
     parse_item(transaxial_focal_spot_shift,double);
+    parse_item(fan_angle_increment,double);
 
     // Iterative Recon parameters
     parse_item(penalty,std::string);
