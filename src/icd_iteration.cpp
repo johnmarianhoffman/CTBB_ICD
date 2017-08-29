@@ -67,7 +67,14 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         
                     size_t central_idx=data->slice_indices[k];
         
-                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
+                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection; // offset is a projection index
+
+                    // If using flying focal spots, need to guarantee that offset corresponds to the first projection in a FFS "stack"
+                    if (rp->Zffs || rp->Phiffs){
+                        int n_focal_spots=pow(2.0,rp->Zffs)*pow(2.0,rp->Phiffs);
+                        int mod=offset%n_focal_spots;
+                        offset=offset-mod;
+                    }
 
 #pragma omp parallel num_threads(OMP_N_THREADS)
                     {
