@@ -27,7 +27,7 @@ struct pair{
     float value;
 };
 
-ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS);
+ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS,ublas::vector<double> radial,ublas::vector<double> anti_radial,ublas::vector<double>e_z);
 
 // Defined in generate_system_matrix.cpp (code available at bottom of this file however)
 extern void save_system_matrix_first_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block);
@@ -100,14 +100,8 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
         ublas::vector<double> ffs_offset(3);
         ffs_offset=generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs);
 
-        // Tranform the deflection out of the rotating coordinate frame of the x-ray source, into the gantry coordinate frame
-        ublas::vector<double> ffs_offset_rot(3);
-        ffs_offset_rot(0) = ublas::inner_prod(ffs_offset,e_w);
-        ffs_offset_rot(1) = ublas::inner_prod(ffs_offset,e_u);
-        ffs_offset_rot(2) = ffs_offset(2);
-        
         // Create a "true" source position with the current deflected focal spot
-        ublas::vector<double> ffs_source_position = source_position+ffs_offset_rot; // +inc_source_position;
+        ublas::vector<double> ffs_source_position = source_position+ffs_offset; // +inc_source_position;
                 
         for (int j = 0; j < rp->n_channels; j++){
             double transaxial_position = (j - rp->center_channel_non_ffs)*rp->transaxial_detector_spacing;
@@ -122,7 +116,7 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
                 //direction_cosine = (b-a-inc)/||b-a-inc||
                 direction_cosine = (-rp->source_detector_distance*cos_transaxial_angle*e_w \
                                     -rp->source_detector_distance*sin_transaxial_angle*e_u  \
-                                    -axial_position*e_z-ffs_offset_rot);
+                                    -axial_position*e_z-ffs_offset);
                 direction_cosine = direction_cosine/ublas::norm_2(direction_cosine);
 
                 int q = k + rp->Nrows_projection*j + rp->Nrows_projection*rp->n_channels*i;
@@ -213,159 +207,41 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     
 }
 
-ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS){
+ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS,ublas::vector<double> radial,ublas::vector<double> anti_radial,ublas::vector<double>e_z){
     ublas::vector<double> ffs_offset(3);
     // Phi-only
     if (PHIFFS && !ZFFS){
         // There are more clever ways to do this, but we implement this way for clarity
         int rho = proj_idx%2;
-        if (rho==0){
-            ffs_offset(0)=0.0;
-            ffs_offset(1)=da;
-            ffs_offset(2)=0.0;                
-        }
-        else{
-            ffs_offset(0)=0.0;
-            ffs_offset(1)=-da;
-            ffs_offset(2)=0.0;                
-        }
+        if (rho==0)
+            ffs_offset=-da*anti_radial; // Note that the "anti-radial" direction is FLIPPED relative to its definition in the Flohr paper
+        else
+            ffs_offset=da*anti_radial;
     }
     // Z-only
     else if (!PHIFFS && ZFFS){
         int rho = proj_idx%2;
-        if (rho==0){
-            ffs_offset(0) = -dr;
-            ffs_offset(1) = 0.0;
-            ffs_offset(2) = -dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }
-        else{
-            ffs_offset(0) = dr;
-            ffs_offset(1) = 0.0;
-            ffs_offset(2) = dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }
+        if (rho==0)
+            ffs_offset = -dr*radial+-dr*tan(anode_angle)*e_z;
+        else // (rho==1)
+            ffs_offset = dr*radial+dr*tan(anode_angle)*e_z;
     }
     // Z & Phi ffs
     else if (PHIFFS && ZFFS){
         int rho = proj_idx%4;
-        if (rho==0){
-            ffs_offset(0) = -dr; 
-            ffs_offset(1) = da; 
-            ffs_offset(2) = -dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }                    
-        else if (rho==1){
-            ffs_offset(0) = -dr; 
-            ffs_offset(1) = -da; 
-            ffs_offset(2) = -dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }
-        else if (rho==2){
-            ffs_offset(0) = dr; 
-            ffs_offset(1) = da; 
-            ffs_offset(2) = dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }
-        else if (rho==3){
-            ffs_offset(0) = dr; 
-            ffs_offset(1) = -da; 
-            ffs_offset(2) = dr*tan(anode_angle); // tk we may have gotten the direction wrong here
-        }
-        else {}
-    }        
+        if (rho==0)
+            ffs_offset = (-dr)*radial + (-da)*anti_radial + (-dr)*tan(anode_angle)*e_z;
+        else if (rho==1)
+            ffs_offset = (-dr)*radial + (da)*anti_radial + (-dr)*tan(anode_angle)*e_z;
+        else if (rho==2)
+            ffs_offset = (dr)*radial + (-da)*anti_radial + (dr)*tan(anode_angle)*e_z;
+        else // (rho==3)
+            ffs_offset = (dr)*radial + (da)*anti_radial + (dr)*tan(anode_angle)*e_z;
+    }
     else{
         std::cout << "Something went wrong (you should never have ended up here). Exiting." << std::endl;
-        exit(1);                
-    }
+        exit(1);
+    } 
 
     return ffs_offset;
 }
-
-//void save_system_matrix_first_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block){
-//
-//    std::cout << "Saving first block to disk..." << std::endl;
-//
-//    // Open the output file
-//    std::string matrix_filepath=rp->output_dir+"/matrix.bin";    
-//    std::ofstream output_file(matrix_filepath.c_str(),std::ios_base::binary);
-//
-//    // Loop over all columns of our system matrix
-//    for (int i=0; i<rp->num_voxels_x*rp->num_voxels_y; i++){
-//
-//        // Get the information about the column chunk in memory
-//        size_t num_nonzeros_memory=(size_t)system_matrix_block[i].filled();
-//        struct pair * col_memory=new struct pair[num_nonzeros_memory];
-//        
-//        size_t nonzero_idx=0;
-//        for (auto pos = system_matrix_block[i].begin(); pos != system_matrix_block[i].end(); ++pos){
-//            col_memory[nonzero_idx].index=(int)pos.index();
-//            col_memory[nonzero_idx].value=(*pos);
-//            nonzero_idx=nonzero_idx + 1;
-//        }
-//
-//        // Flush the data to disk (more lines of code than needed for clarity);
-//        size_t num_nonzeros=num_nonzeros_memory;
-//        output_file.write((char*)&num_nonzeros,sizeof(num_nonzeros));
-//        output_file.write((char*)col_memory,num_nonzeros_memory*sizeof(struct pair));
-//
-//        // Empty contents, and force reallocation of matrix column
-//        ublas::compressed_vector<float>(system_matrix_block[i].size(), 0).swap(system_matrix_block[i]);
-//
-//        delete[] col_memory;
-//    }
-//
-//    output_file.close();
-//}
-//
-//
-//void save_system_matrix_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block){
-//
-//    std::cout << "Saving next block to disk..." << std::endl;
-//
-//    // Filepaths
-//    std::string tmp_matrix_filepath=rp->output_dir + "/matrix_tmp.bin";
-//    std::string matrix_filepath=rp->output_dir+"/matrix.bin";
-//
-//    // Open our input and output files
-//    std::ofstream   output_file(tmp_matrix_filepath.c_str(),std::ios_base::binary);
-//    std::ifstream existing_file(matrix_filepath.c_str(),std::ios_base::binary);
-//
-//    for (int i=0; i<rp->num_voxels_x*rp->num_voxels_y; i++){
-//
-//        // Read the already saved chunk of the current column from disk
-//        size_t num_nonzeros_existing;
-//        existing_file.read((char*)&num_nonzeros_existing,sizeof(num_nonzeros_existing));
-//
-//        struct pair * col_disk = new struct pair[num_nonzeros_existing];
-//        existing_file.read((char*)col_disk,num_nonzeros_existing*sizeof(struct pair));
-//
-//        // Get the information about the chunk in memory
-//        size_t num_nonzeros_memory=(size_t)system_matrix_block[i].filled();
-//        struct pair * col_memory=new struct pair[num_nonzeros_memory];
-//        
-//        size_t nonzero_idx=0;
-//        for (auto pos = system_matrix_block[i].begin(); pos != system_matrix_block[i].end(); ++pos){            
-//            col_memory[nonzero_idx].index=(int)pos.index();
-//            col_memory[nonzero_idx].value=(*pos);
-//            nonzero_idx=nonzero_idx + 1;
-//        }
-//
-//        // Flush the data to disk (more lines of code than needed for clarity);
-//        size_t num_nonzeros=num_nonzeros_existing+num_nonzeros_memory;
-//        output_file.write((char*)&num_nonzeros,sizeof(num_nonzeros));
-//        output_file.write((char*)col_disk,num_nonzeros_existing*sizeof(struct pair));
-//        output_file.write((char*)col_memory,num_nonzeros_memory*sizeof(struct pair));
-//
-//        // Empty contents, and force reallocation of matrix column
-//        ublas::compressed_vector<float>(system_matrix_block[i].size(), 0).swap(system_matrix_block[i]);
-//
-//        delete[] col_memory;
-//        delete[] col_disk;
-//    }
-//
-//    // Overwrite the existing matrix file with the updated temporary file
-//    int success=rename(tmp_matrix_filepath.c_str(),matrix_filepath.c_str()); // 0 return means success
-//    if (success!=0){
-//        std::cout << "There was an error joining matrix chunks. Exiting."  << std::endl;
-//        exit(1);
-//    }
-//
-//    output_file.close();
-//    existing_file.close();
-//}
