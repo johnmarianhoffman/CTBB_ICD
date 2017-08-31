@@ -78,7 +78,7 @@ int main(int argc, char ** argv){
     // Perform wFBP reconstruction if using as input to ICD
     initialize_recon_volume(&rp_const,&data);
 
-    /*--- Generate system matrix (generate_system_matrix.cpp) ---*/
+    /*--- Generate system matrix (generate_system_matrix.cpp or generate_system_matrix_ffs.cpp) ---*/
     // If matrix file does not exist, generate
     if (!exists(rp_const.matrix_path)){
         std::cout << "No existing matrix file found for reconstruction." << std::endl;
