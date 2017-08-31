@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -60,8 +61,17 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
 
     // Attempts with BOOST
 
-    std::cout << "Matrix generation for SciFFSNone configuration."  << std::endl;
-
+    if (rp->Phiffs && !rp->Zffs)
+        std::cout << "Matrix generation for SciFFSPhi configuration."  << std::endl;
+    else if (!rp->Phiffs && rp->Zffs)
+        std::cout << "Matrix generation for SciFFSZ configuration."  << std::endl;
+    else if (rp->Phiffs && rp->Zffs)
+        std::cout << "Matrix generation for SciFFSPhiZ configuration."  << std::endl;
+    else{
+        std::cout << "You shouldn't be here. Something's gone wrong. Exiting." << std::endl;
+        exit(1);
+    }
+    
     init_spinner();
 
     for (int i = 0; i < rp->num_views_for_system_matrix; i++){
@@ -87,10 +97,11 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
         // Determine base source position (if we had no FFS) 
         source_position = rp->focal_spot_radius*e_w + rp->table_direction*((double)i - 0.5*(double)rp->num_views_for_system_matrix)*rp->tube_z_increment*e_z;
         // Determine the source position deflection caused by the current FFS
-        ublas::vector<double> ffs_offset=generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs);
+        ublas::vector<double> ffs_offset(3);
+        ffs_offset=generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs);
 
         // Tranform the deflection out of the rotating coordinate frame of the x-ray source, into the gantry coordinate frame
-        ublas::vector<double> ffs_offset_rot;
+        ublas::vector<double> ffs_offset_rot(3);
         ffs_offset_rot(0) = ublas::inner_prod(ffs_offset,e_w);
         ffs_offset_rot(1) = ublas::inner_prod(ffs_offset,e_u);
         ffs_offset_rot(2) = ffs_offset(2);
@@ -203,7 +214,7 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
 }
 
 ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS){
-    ublas::vector<double> ffs_offset;
+    ublas::vector<double> ffs_offset(3);
     // Phi-only
     if (PHIFFS && !ZFFS){
         // There are more clever ways to do this, but we implement this way for clarity
