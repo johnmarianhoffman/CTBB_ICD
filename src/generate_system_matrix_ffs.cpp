@@ -98,7 +98,7 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
         source_position = rp->focal_spot_radius*e_w + rp->table_direction*((double)i - 0.5*(double)rp->num_views_for_system_matrix)*rp->tube_z_increment*e_z;
         // Determine the source position deflection caused by the current FFS
         ublas::vector<double> ffs_offset(3);
-        ffs_offset=generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs);
+        ffs_offset=generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs,e_w,e_u,e_z);
 
         // Create a "true" source position with the current deflected focal spot
         ublas::vector<double> ffs_source_position = source_position+ffs_offset; // +inc_source_position;
