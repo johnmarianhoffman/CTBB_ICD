@@ -93,6 +93,7 @@ void generate_system_matrix(const struct recon_params * rp, struct ct_data * dat
                                         +rp->source_detector_distance*rp->source_detector_distance);
 
                     int q = k + rp->Nrows_projection*j + rp->Nrows_projection*rp->n_channels*i;
+                    //int q = (rp->Nrows_projection-1-k) + rp->Nrows_projection*j + rp->Nrows_projection*rp->n_channels*i;
                     
                     //Compute the contribution of the ray to the system matrix
                     double x, y,

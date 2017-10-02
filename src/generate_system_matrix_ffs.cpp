@@ -207,10 +207,16 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     
 }
 
-ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS,ublas::vector<double> radial,ublas::vector<double> anti_radial,ublas::vector<double>e_z){
+ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
+                                          double anode_angle, int ZFFS, int PHIFFS,
+                                          ublas::vector<double> radial,
+                                          ublas::vector<double> anti_radial,
+                                          ublas::vector<double>e_z){
+    //generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs,e_w,e_u,e_z);
     ublas::vector<double> ffs_offset(3);
     // Phi-only
     if (PHIFFS && !ZFFS){
+        //       std::cout << "PhiFFS" << std::endl;
         // There are more clever ways to do this, but we implement this way for clarity
         int rho = proj_idx%2;
         if (rho==0)
@@ -221,6 +227,7 @@ ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, dou
     // Z-only
     else if (!PHIFFS && ZFFS){
         int rho = proj_idx%2;
+        std::cout << "ZFFS" << std::endl;
         if (rho==0)
             ffs_offset = -dr*radial+-dr*tan(anode_angle)*e_z;
         else // (rho==1)
@@ -229,6 +236,7 @@ ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, dou
     // Z & Phi ffs
     else if (PHIFFS && ZFFS){
         int rho = proj_idx%4;
+        std::cout << "ZFFS" << std::endl;
         if (rho==0)
             ffs_offset = (-dr)*radial + (-da)*anti_radial + (-dr)*tan(anode_angle)*e_z;
         else if (rho==1)

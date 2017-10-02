@@ -240,15 +240,37 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
     
     switch (rp->FileType){
     case 0:{; // Binary file
+
 	    for (int i=0;i<rp->Readings;i++){
+                rp->first_view_angle=0.0;
+                rp->table_direction=-1;
+                
 		data->tube_angles[i]=fmod(((360.0f/rp->num_views_per_turn)*i+rp->first_view_angle),360.0f);
 		if (rp->table_direction==-1)
-		    data->table_positions[i]=((float)rp->Readings/(float)rp->num_views_per_turn)*rp->table_feed_per_rotation-(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
+		    data->table_positions[i]=((float)rp->Readings/(float)rp->num_views_per_turn)
+                        *rp->table_feed_per_rotation-(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
 		else if (rp->table_direction==1)
 		    data->table_positions[i]=0.0f+(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
 		else 
 		    data->table_positions[i]=0.0f+(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
-	    }	
+
+                float * tmp_frame=(float*)malloc(rp->n_channels*rp->Nrows_projection*sizeof(float));
+
+                ReadBinaryFrame(raw_file,i,rp->n_channels,rp->Nrows_projection, tmp_frame,rp->RawOffset);
+
+                //Transpose all of our data into the frame
+                for (int ii = 0; ii < rp->Nrows_projection; ++ii){
+                    for (int jj = 0; jj < rp->n_channels; ++jj){
+                        int idx_in=ii+jj*rp->Nrows_projection;
+                        int idx_out=jj+ii*rp->n_channels;
+
+                        data->raw[i*rp->n_channels*rp->Nrows_projection+idx_out]=tmp_frame[idx_in];
+                    }
+                }
+	    }
+
+            direction=rp->table_direction;
+            
 	    break;}
     case 1:{; //DefinitionAS Raw
             for (int i=0;i<rp->Readings;i++){
