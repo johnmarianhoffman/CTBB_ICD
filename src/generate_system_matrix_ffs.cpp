@@ -41,6 +41,10 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     // The focal spot deflection amounts
     double dr=rp->source_detector_distance*rp->CollSlicewidth/(4.0*(rp->source_detector_distance-rp->focal_spot_radius)*tan(rp->anode_angle*PI/180.0));
     double da=rp->source_detector_distance*rp->focal_spot_radius*sin(rp->fan_angle_increment)/(4.0*(rp->source_detector_distance-rp->focal_spot_radius));
+    //double da=0.40; // Force this for testing
+
+    std::cout << "dr: " << dr << std::endl;
+    std::cout << "da: " << da << std::endl;    
 
     ublas::vector<double> source_position(3);
     ublas::vector<double> direction_cosine(3);
@@ -78,7 +82,11 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
 
         update_spinner(i,rp->num_views_for_system_matrix);
 
-        // tk this could be one place where we take the initial tube angle into account
+        // tk ONLY UPDATE ROOT source position every other projection
+        //int ta_idx=(i/2)*2;
+        //double tube_angle = (ta_idx - 0.5*rp->num_views_for_system_matrix)*rp->tube_angle_increment;
+
+        // Update the source position
         double tube_angle = (i - 0.5*rp->num_views_for_system_matrix)*rp->tube_angle_increment;
  
         //Define local coordinate system for the current view
@@ -104,10 +112,10 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
         ublas::vector<double> ffs_source_position = source_position+ffs_offset; // +inc_source_position;
                 
         for (int j = 0; j < rp->n_channels; j++){
-            double transaxial_position = (j - rp->center_channel_non_ffs)*rp->transaxial_detector_spacing;
-            double transaxial_angle = transaxial_position / rp->source_detector_distance;
+
+            double transaxial_angle=(j - rp->center_channel_non_ffs)*rp->fan_angle_increment;
             double cos_transaxial_angle = cos(transaxial_angle);
-            double sin_transaxial_angle = sin(transaxial_angle); 
+            double sin_transaxial_angle = sin(transaxial_angle);
 
             for (int k = 0; k < rp->Nrows_projection; k++){
                 double axial_position = (k - rp->center_row)*rp->axial_detector_spacing;
@@ -115,8 +123,9 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
                 //b-a = - D cos g ew - D sin g eu - z ez 
                 //direction_cosine = (b-a-inc)/||b-a-inc||
                 direction_cosine = (-rp->source_detector_distance*cos_transaxial_angle*e_w \
-                                    -rp->source_detector_distance*sin_transaxial_angle*e_u  \
+                                    -rp->source_detector_distance*sin_transaxial_angle*e_u \
                                     -axial_position*e_z-ffs_offset);
+                
                 direction_cosine = direction_cosine/ublas::norm_2(direction_cosine);
 
                 int q = k + rp->Nrows_projection*j + rp->Nrows_projection*rp->n_channels*i;
@@ -207,11 +216,15 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     
 }
 
+void print_vector(ublas::vector<double> vec){
+    std::cout << vec(0) << "," << vec(1) << "," << vec(2) << std::endl;
+};
+
 ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
                                           double anode_angle, int ZFFS, int PHIFFS,
                                           ublas::vector<double> radial,
                                           ublas::vector<double> anti_radial,
-                                          ublas::vector<double>e_z){
+                                          ublas::vector<double> e_z){
     //generate_ffs_offset(i,da,dr,rp->anode_angle,rp->Zffs,rp->Phiffs,e_w,e_u,e_z);
     ublas::vector<double> ffs_offset(3);
     // Phi-only
@@ -219,10 +232,14 @@ ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
         //       std::cout << "PhiFFS" << std::endl;
         // There are more clever ways to do this, but we implement this way for clarity
         int rho = proj_idx%2;
-        if (rho==0)
+        if (rho==0){
             ffs_offset=-da*anti_radial; // Note that the "anti-radial" direction is FLIPPED relative to its definition in the Flohr paper
-        else
+        }
+        else{
             ffs_offset=da*anti_radial;
+        }
+        ///print_vector(ffs_offset);
+
     }
     // Z-only
     else if (!PHIFFS && ZFFS){
@@ -253,3 +270,6 @@ ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
 
     return ffs_offset;
 }
+
+
+ 

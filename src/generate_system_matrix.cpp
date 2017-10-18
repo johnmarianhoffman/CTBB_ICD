@@ -161,7 +161,7 @@ void generate_system_matrix(const struct recon_params * rp, struct ct_data * dat
                             }
                         }
                     }
-                }                
+                }
             }
 
             // Save system matrix chunk to disk (should happen ~5 times throughout generation)
@@ -175,8 +175,11 @@ void generate_system_matrix(const struct recon_params * rp, struct ct_data * dat
         }
 
         // Save the final chunk to disk
-        save_system_matrix_block(rp,system_matrix);
-
+        if (rp->num_views_for_system_matrix<300)
+            save_system_matrix_first_block(rp,system_matrix);
+        else            
+            save_system_matrix_block(rp,system_matrix);
+        
         // Clear our user feeback
         destroy_spinner();
 
