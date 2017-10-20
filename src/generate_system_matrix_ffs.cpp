@@ -22,6 +22,10 @@ namespace ublas = boost::numeric::ublas;
 
 #define debug_disp(VARIABLE_NAME) std::cout << #VARIABLE_NAME": " << VARIABLE_NAME << std::endl;
 
+void print_vector(ublas::vector<double> vec){
+    std::cout << vec(0) << "," << vec(1) << "," << vec(2) << std::endl;
+};
+
 struct pair{
     int index;
     float value;
@@ -41,8 +45,7 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     // The focal spot deflection amounts
     double dr=rp->source_detector_distance*rp->CollSlicewidth/(4.0*(rp->source_detector_distance-rp->focal_spot_radius)*tan(rp->anode_angle*PI/180.0));
     double da=rp->source_detector_distance*rp->focal_spot_radius*sin(rp->fan_angle_increment)/(4.0*(rp->source_detector_distance-rp->focal_spot_radius));
-    //double da=0.40; // Force this for testing
-
+    
     std::cout << "dr: " << dr << std::endl;
     std::cout << "da: " << da << std::endl;    
 
@@ -79,7 +82,6 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     init_spinner();
 
     for (int i = 0; i < rp->num_views_for_system_matrix; i++){
-
         update_spinner(i,rp->num_views_for_system_matrix);
 
         // tk ONLY UPDATE ROOT source position every other projection
@@ -216,9 +218,6 @@ void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data *
     
 }
 
-void print_vector(ublas::vector<double> vec){
-    std::cout << vec(0) << "," << vec(1) << "," << vec(2) << std::endl;
-};
 
 ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
                                           double anode_angle, int ZFFS, int PHIFFS,
@@ -233,12 +232,11 @@ ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr,
         // There are more clever ways to do this, but we implement this way for clarity
         int rho = proj_idx%2;
         if (rho==0){
-            ffs_offset=-da*anti_radial; // Note that the "anti-radial" direction is FLIPPED relative to its definition in the Flohr paper
+            ffs_offset=da*anti_radial; // Note that the "anti-radial" direction is FLIPPED relative to its definition in the Flohr paper
         }
         else{
-            ffs_offset=da*anti_radial;
+            ffs_offset=-da*anti_radial;
         }
-        ///print_vector(ffs_offset);
 
     }
     // Z-only

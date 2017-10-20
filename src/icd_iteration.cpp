@@ -168,18 +168,12 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         double curr_slice_location=data->slice_locations[k];
                         size_t central_idx=data->slice_indices[k];
 
-                        // If using flying focal spots, need to guarantee that offset corresponds to the first projection in a FFS "stack"
-                        if (rp->Zffs || rp->Phiffs){
-                            int n_focal_spots=pow(2.0,rp->Zffs)*pow(2.0,rp->Phiffs);
-                            int mod=central_idx%n_focal_spots;
-                            central_idx=central_idx-mod;
-                        }
-                        
                         int q = q0 + rp->num_voxels_x*rp->num_voxels_y*k;
 
-                        // This is the key spot to select slice location (done via the "central_idx" variable)
-                        int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
-
+                        // This is the key spot to select slice location (done via the "central_idx" variable)                        
+                        // If using flying focal spots, need to guarantee that offset corresponds to the first projection in a FFS "stack"
+                        int start_idx=(central_idx - rp->num_views_for_system_matrix/2);
+                        int offset = start_idx*rp->n_channels*rp->Nrows_projection;
                         
                         double alpha = 0.0;
                         double beta  = 0.0;

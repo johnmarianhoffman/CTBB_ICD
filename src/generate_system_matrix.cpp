@@ -57,7 +57,7 @@ void generate_system_matrix(const struct recon_params * rp, struct ct_data * dat
         init_spinner();
 
         for (int i = 0; i < rp->num_views_for_system_matrix; i++){
-
+            
             update_spinner(i,rp->num_views_for_system_matrix);
 
             // tk this could be one place where we take the initial tube angle into account

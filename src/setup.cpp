@@ -178,10 +178,12 @@ struct recon_params configure_recon_params(std::string filename){
     // Note: Num_views_per_turn ACCOUNTS for flying focal spot.
     //       This will automatically adjust tube_angle_increment
     //       and num_views_for_system_matrix as needed.
+    int n_ffs=(size_t)pow(2.0,(double)rp.Zffs)*(size_t)pow(2.0,(double)rp.Phiffs);
     rp.num_views_per_turn = rp.num_views_per_turn_without_ffs*(size_t)pow(2.0,(double)rp.Zffs)*(size_t)pow(2.0,(double)rp.Phiffs);
     rp.tube_angle_increment = 2.0*PI/rp.num_views_per_turn;
     rp.tube_z_increment   = rp.table_feed_per_rotation/rp.num_views_per_turn;
-    rp.voxel_size_z       = round(rp.voxel_size_z/rp.tube_z_increment)*rp.tube_z_increment; // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
+    //rp.voxel_size_z       = round(rp.voxel_size_z/rp.tube_z_increment)*rp.tube_z_increment; // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
+    rp.voxel_size_z       = round(rp.voxel_size_z/(n_ffs*rp.tube_z_increment))*(n_ffs*rp.tube_z_increment); // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
     rp.views_per_slice    = (size_t)(rp.voxel_size_z/rp.tube_z_increment);
 
     std::cout << "voxel_size_z (after): " << rp.voxel_size_z << std::endl;
@@ -190,8 +192,14 @@ struct recon_params configure_recon_params(std::string filename){
 
     rp.beam_width_at_roi_edge = rp.beam_width * (rp.focal_spot_radius+rp.fov_radius)/rp.source_detector_distance;
     std::cout << "Beam width: " << rp.beam_width_at_roi_edge << std::endl;
-
+    
     rp.num_views_for_system_matrix = (size_t)(2.0*PI/(rp.table_feed_per_rotation*rp.tube_angle_increment)*rp.beam_width_at_roi_edge);
+    // guarantee that we have an even number
+    if (rp.num_views_for_system_matrix%2==1)
+        rp.num_views_for_system_matrix+=1;
+    // Guarantee divisible by 2*n_ffs
+    while ((rp.num_views_for_system_matrix/2)%n_ffs > 0)
+        rp.num_views_for_system_matrix=rp.num_views_for_system_matrix+1;
 
     rp.Nrows_projection=rp.Nrows/(size_t)pow(2.0,rp.Zffs);
 
@@ -363,14 +371,15 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
         // Index
         size_t central_idx=0;
         double curr_slice_location=data->slice_locations[i];
+        int n_ffs=(size_t)pow(2.0,(double)rp->Zffs)*(size_t)pow(2.0,(double)rp->Phiffs);
 
         if (rp->table_direction>0){
             while (data->table_positions[central_idx]<curr_slice_location)
-                central_idx+=1;                            
+                central_idx+=n_ffs;                            
         }
         else{
             while (data->table_positions[central_idx]>curr_slice_location)
-                central_idx+=1;                            
+                central_idx+=n_ffs;                            
         }
 
         data->slice_indices[i]=central_idx;
