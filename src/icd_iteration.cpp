@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <math.h>
 
 #include <chrono>
 
@@ -16,7 +17,7 @@ namespace ublas = boost::numeric::ublas;
 #include "icd_iteration.h"
 #include "penalties.h"
 
-#define OMP_N_THREADS 8
+#define OMP_N_THREADS 11
 
 void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
@@ -24,7 +25,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     
     // Allocate sinogram estimate (all zeros)
     double * sinogram_estimate = new double[rp->Readings*rp->n_channels*rp->Nrows_projection]();
-    std::vector<double> reconstructed_image(rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z, 0.0);
+    double * reconstructed_image= new double[rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z];
 
     // Copy the float recon volume into the vector array (if uninitialized, will just copy zeros);
     for (int i=0; i<rp->num_voxels_x; i++){
@@ -55,7 +56,9 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     int index;
                     float value;
                 };
-                std::vector<pair> nonzeros(num_nonzeros);
+                //std::vector<pair> nonzeros(num_nonzeros);
+
+                struct pair * nonzeros = new struct pair[num_nonzeros];
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
 
@@ -63,9 +66,15 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                 for (int k=0; k<rp->num_voxels_z; k++){
         
                     size_t central_idx=data->slice_indices[k];
-        
-                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
-
+                    // If using flying focal spots, need to guarantee that offset corresponds to the first projection in a FFS "stack"
+                    if (rp->Zffs || rp->Phiffs){
+                        int n_focal_spots=pow(2.0,rp->Zffs)*pow(2.0,rp->Phiffs);
+                        int mod=central_idx%n_focal_spots;
+                        central_idx=central_idx-mod;
+                    }
+                    
+                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection; // offset is a projection index
+                    
 #pragma omp parallel num_threads(OMP_N_THREADS)
                     {
 #pragma omp for
@@ -78,6 +87,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     }
                     }
                 }
+                delete[] nonzeros;
             }            
         }
         destroy_spinner();
@@ -103,7 +113,6 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     std::cout << "Wrote initial sinogram to disk." << std::endl;    
 
     //tk end debugging
-    
 
     ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
 
@@ -121,6 +130,8 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
         
         std::cout << "Iteration #" << n+1 << std::endl;
         std::chrono::high_resolution_clock::time_point start=std::chrono::high_resolution_clock::now();
+
+        double fov_limit=(rp->acquisition_fov/2.0)*(rp->acquisition_fov/2.0);
 
         init_spinner();
         for (int j = 0; j < rp->num_voxels_y; j++){
@@ -140,12 +151,14 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                     float value;
                 };
 
-                std::vector<pair> nonzeros(num_nonzeros);
+                //std::vector<pair> nonzeros(num_nonzeros);
+
+                struct pair * nonzeros = new struct pair[num_nonzeros];
 
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
 
-                if ((x*x + y*y) < (rp->fov_radius*rp->fov_radius)){
+                if ((x*x + y*y) < fov_limit){
 
                     int q0 = i + rp->num_voxels_x*j;
 
@@ -154,11 +167,13 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         /// Grab the Z slice locations (spatial+idx)
                         double curr_slice_location=data->slice_locations[k];
                         size_t central_idx=data->slice_indices[k];
-                        
+
                         int q = q0 + rp->num_voxels_x*rp->num_voxels_y*k;
 
-                        // This is the key spot to select slice location (done via the "central_idx" variable)
-                        int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection;
+                        // This is the key spot to select slice location (done via the "central_idx" variable)                        
+                        // If using flying focal spots, need to guarantee that offset corresponds to the first projection in a FFS "stack"
+                        int start_idx=(central_idx - rp->num_views_for_system_matrix/2);
+                        int offset = start_idx*rp->n_channels*rp->Nrows_projection;
                         
                         double alpha = 0.0;
                         double beta  = 0.0;
@@ -182,11 +197,11 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                         // Apply selected penalty functions
                         double pixel_update=0.0;
                         /* Quadratic */
-                        if (rp->penalty.compare("quadratic")){
+                        if (rp->penalty.compare("quadratic")==0){
                             pixel_update=quadratic(q,&ip,reconstructed_image);
                         }
                         /* Edge Preserving*/
-                        else if(rp->penalty.compare("edge-preserving")){
+                        else if(rp->penalty.compare("edge-preserving")==0){
                             pixel_update=edge_preserving(q,&ip,reconstructed_image);
                         }
                         else{
@@ -215,7 +230,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
                     }
                 }
-
+                delete[] nonzeros;
             }
         }
 

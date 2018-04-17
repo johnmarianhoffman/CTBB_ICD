@@ -3,6 +3,7 @@
 
 # John's additions
 src/obj/*
+src/scratch
 *.txt
 .emacs*
 \#*

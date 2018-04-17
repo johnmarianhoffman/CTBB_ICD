@@ -26,7 +26,8 @@ struct recon_params {
     size_t num_views_per_turn_without_ffs;
     double source_detector_distance;    // cm    
     double transaxial_detector_spacing; // cm 
-    double transaxial_focal_spot_shift; // cm 
+    double transaxial_focal_spot_shift; // cm
+    double fan_angle_increment;         // radians
 
     // Iterative recon parameters
     std::string penalty;                // Either "quadratic" or "edge-preserving"

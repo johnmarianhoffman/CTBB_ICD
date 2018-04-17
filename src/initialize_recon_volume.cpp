@@ -188,7 +188,7 @@ void build_wfbp_parameter_file(const struct recon_params * rp){
     wfbp_parameter_fid << "Scanner: "                 << "definitionas.scanner"            << std::endl;
     wfbp_parameter_fid << "FileType: "                << rp->FileType                      << std::endl;
     wfbp_parameter_fid << "FileSubType: "             << rp->FileSubType                   << std::endl;
-    wfbp_parameter_fid << "RawOffset: "               << "0.0"                             << std::endl;
+    wfbp_parameter_fid << "RawOffset: "               << rp->RawOffset                     << std::endl;
     wfbp_parameter_fid << "Nx: "                      << rp->nx                            << std::endl;
     wfbp_parameter_fid << "Ny: "                      << rp->ny                            << std::endl;
     wfbp_parameter_fid << "ImageOrientationPatient: " << "N/A"                             << std::endl;
