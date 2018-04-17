@@ -7,7 +7,7 @@ INCLUDES=-I$(IDIR_RECON)
 
 LOCAL_INCLUDES=recon_structs.h
 
-LIBS=-lm -lyaml-cpp -lctbb_read
+LIBS=-lm -lyaml-cpp -lfct_read
 
 CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11
 
