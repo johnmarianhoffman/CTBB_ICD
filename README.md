@@ -1,3 +1,5 @@
-# CTBB_ICD
+# FreeCT_ICD
 
-## This is not the project you're looking for
+## What is FreeCT_ICD?
+
+FreeCT\_ICD is the model-based iterative reconstruction companion software to FreeCT\_wFBP.
