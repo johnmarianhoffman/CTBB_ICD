@@ -1,9 +1,30 @@
+/* FreeCT_ICD is MBIR CT reconstruction Software */
+/* Copyright (C) 2018  John Hoffman, Stefano Young, Frederic Noo */
+
+/* This program is free software; you can redistribute it and/or */
+/* modify it under the terms of the GNU General Public License */
+/* as published by the Free Software Foundation; either version 2 */
+/* of the License, or (at your option) any later version. */
+
+/* This program is distributed in the hope that it will be useful, */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* GNU General Public License for more details. */
+
+/* You should have received a copy of the GNU General Public License */
+/* along with this program; if not, write to the Free Software */
+/* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. */
+
+/* Questions and comments should be directed to */
+/* jmhoffman@mednet.ucla.edu with "FreeCT_ICD" in the subject line*/
+
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <cstring>
 
-#include <ctbb/ctbb_read.h>
+#include <fct/fct_read.h>
+//#include <ctbb/ctbb_read.h>
 
 #include <stdio.h> // Bad form and hopefully we'll remove sometime. Needed for Compatibility with raw data reader libraries
 #include "recon_structs.h"
@@ -30,6 +51,10 @@
             exit_flag=true;}
 
 #define check_with_default(TAG_NAME,DEFAULT_VALUE) if (rp.TAG_NAME==0.0){    \
+    std::cout << #TAG_NAME" was not explicitly set in parameter file. Using default value: "#DEFAULT_VALUE << std::endl;\
+    rp.TAG_NAME=DEFAULT_VALUE;}
+
+#define check_string_with_default(TAG_NAME,DEFAULT_VALUE) if (strcmp(rp.TAG_NAME.c_str(),"")==0){ \
     std::cout << #TAG_NAME" was not explicitly set in parameter file. Using default value: "#DEFAULT_VALUE << std::endl;\
     rp.TAG_NAME=DEFAULT_VALUE;}
 
@@ -101,6 +126,7 @@ struct recon_params configure_recon_params(std::string filename){
     double_check(center_row);
     double_check(transaxial_detector_spacing);
     double_check(transaxial_focal_spot_shift);
+    double_check(fan_angle_increment);
 
     // Required Scan Specifics
     double_check(table_feed_per_rotation);
@@ -114,7 +140,9 @@ struct recon_params configure_recon_params(std::string filename){
     check_with_default(slice_thickness,1.0);
 
     // Required Iterative parameters
+    check_string_with_default(penalty,"quadratic");
     check_with_default(lambda,0.3);
+    check_with_default(delta,0.005);
     size_t_check(num_iterations);
 
     // John's Addition's
@@ -135,6 +163,15 @@ struct recon_params configure_recon_params(std::string filename){
     // double_check(dz);
     // check_with_default(center_voxel_x,0.0);
     // check_with_default(center_voxel_y,0.0);
+
+    // Non-macro-able other checks we need to perform
+    // Penalty function
+    if ((strcmp(rp.penalty.c_str(),"quadratic")!=0)&&
+        (strcmp(rp.penalty.c_str(),"edge-preserving")!=0)){
+        std::cout << "Requesting penalty function, \"" << rp.penalty << "\", is invalid." << std::endl;
+        std::cout << "Valid choices are \"quadratic\" or \"edge-preserving\" (without quotes)" << std::endl;
+        exit_flag=true;
+    }
 
     if (exit_flag){
         std::cout << "Missing some required parameters.  Please review the parameter file. Exiting." << std::endl;
@@ -158,11 +195,16 @@ struct recon_params configure_recon_params(std::string filename){
     rp.num_voxels_z = rp.nz;
 
     std::cout << "voxel_size_z (prior): " << rp.voxel_size_z << std::endl;
-    
+
+    // Note: Num_views_per_turn ACCOUNTS for flying focal spot.
+    //       This will automatically adjust tube_angle_increment
+    //       and num_views_for_system_matrix as needed.
+    int n_ffs=(size_t)pow(2.0,(double)rp.Zffs)*(size_t)pow(2.0,(double)rp.Phiffs);
     rp.num_views_per_turn = rp.num_views_per_turn_without_ffs*(size_t)pow(2.0,(double)rp.Zffs)*(size_t)pow(2.0,(double)rp.Phiffs);
     rp.tube_angle_increment = 2.0*PI/rp.num_views_per_turn;
     rp.tube_z_increment   = rp.table_feed_per_rotation/rp.num_views_per_turn;
-    rp.voxel_size_z       = round(rp.voxel_size_z/rp.tube_z_increment)*rp.tube_z_increment; // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
+    //rp.voxel_size_z       = round(rp.voxel_size_z/rp.tube_z_increment)*rp.tube_z_increment; // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
+    rp.voxel_size_z       = round(rp.voxel_size_z/(n_ffs*rp.tube_z_increment))*(n_ffs*rp.tube_z_increment); // Snap requested voxel size/slice thickness to one acceptable for the rotating slices algorithm
     rp.views_per_slice    = (size_t)(rp.voxel_size_z/rp.tube_z_increment);
 
     std::cout << "voxel_size_z (after): " << rp.voxel_size_z << std::endl;
@@ -171,8 +213,14 @@ struct recon_params configure_recon_params(std::string filename){
 
     rp.beam_width_at_roi_edge = rp.beam_width * (rp.focal_spot_radius+rp.fov_radius)/rp.source_detector_distance;
     std::cout << "Beam width: " << rp.beam_width_at_roi_edge << std::endl;
-
+    
     rp.num_views_for_system_matrix = (size_t)(2.0*PI/(rp.table_feed_per_rotation*rp.tube_angle_increment)*rp.beam_width_at_roi_edge);
+    // guarantee that we have an even number
+    if (rp.num_views_for_system_matrix%2==1)
+        rp.num_views_for_system_matrix+=1;
+    // Guarantee divisible by 2*n_ffs
+    while ((rp.num_views_for_system_matrix/2)%n_ffs > 0)
+        rp.num_views_for_system_matrix=rp.num_views_for_system_matrix+1;
 
     rp.Nrows_projection=rp.Nrows/(size_t)pow(2.0,rp.Zffs);
 
@@ -221,15 +269,37 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
     
     switch (rp->FileType){
     case 0:{; // Binary file
+
 	    for (int i=0;i<rp->Readings;i++){
+                rp->first_view_angle=0.0;
+                rp->table_direction=-1;
+                
 		data->tube_angles[i]=fmod(((360.0f/rp->num_views_per_turn)*i+rp->first_view_angle),360.0f);
 		if (rp->table_direction==-1)
-		    data->table_positions[i]=((float)rp->Readings/(float)rp->num_views_per_turn)*rp->table_feed_per_rotation-(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
+		    data->table_positions[i]=((float)rp->Readings/(float)rp->num_views_per_turn)
+                        *rp->table_feed_per_rotation-(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
 		else if (rp->table_direction==1)
 		    data->table_positions[i]=0.0f+(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
 		else 
 		    data->table_positions[i]=0.0f+(float)i*rp->table_feed_per_rotation/(float)rp->num_views_per_turn;
-	    }	
+
+                float * tmp_frame=(float*)malloc(rp->n_channels*rp->Nrows_projection*sizeof(float));
+
+                ReadBinaryFrame(raw_file,i,rp->n_channels,rp->Nrows_projection, tmp_frame,rp->RawOffset);
+
+                //Transpose all of our data into the frame
+                for (int ii = 0; ii < rp->Nrows_projection; ++ii){
+                    for (int jj = 0; jj < rp->n_channels; ++jj){
+                        int idx_in=ii+jj*rp->Nrows_projection;
+                        int idx_out=jj+ii*rp->n_channels;
+
+                        data->raw[i*rp->n_channels*rp->Nrows_projection+idx_out]=tmp_frame[idx_in];
+                    }
+                }
+	    }
+
+            direction=rp->table_direction;
+            
 	    break;}
     case 1:{; //DefinitionAS Raw
             for (int i=0;i<rp->Readings;i++){
@@ -245,10 +315,13 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
             break;}
     case 4:{; //IMA (can wrap any of the above (except binary)
             int raw_data_subtype=rp->FileSubType; // Determine if we're looking for PTR or CTD
+
+
       
             for (int i=0;i<rp->Readings;i++){
                 data->tube_angles[i]=(double)ReadIMATubeAngle(raw_file,i,rp->n_channels,rp->Nrows_projection,raw_data_subtype,rp->RawOffset);
                 data->table_positions[i]=((double)ReadIMATablePosition(raw_file,i,rp->n_channels,rp->Nrows_projection,raw_data_subtype,rp->RawOffset))/1000.0;
+                ReadIMAFrame(raw_file,i,rp->n_channels,rp->Nrows_projection,&data->raw[i*rp->n_channels*rp->Nrows_projection],raw_data_subtype,rp->RawOffset);
             }
 
             // <0 is decreasing table position >0 is increasing
@@ -319,14 +392,15 @@ void load_raw(struct recon_params *  rp,struct ct_data * data){
         // Index
         size_t central_idx=0;
         double curr_slice_location=data->slice_locations[i];
+        int n_ffs=(size_t)pow(2.0,(double)rp->Zffs)*(size_t)pow(2.0,(double)rp->Phiffs);
 
         if (rp->table_direction>0){
             while (data->table_positions[central_idx]<curr_slice_location)
-                central_idx+=1;                            
+                central_idx+=n_ffs;                            
         }
         else{
             while (data->table_positions[central_idx]>curr_slice_location)
-                central_idx+=1;                            
+                central_idx+=n_ffs;                            
         }
 
         data->slice_indices[i]=central_idx;

@@ -22,4 +22,4 @@
 
 #include "recon_structs.h"
 
-void parse_config(std::string config_file, struct recon_params * structure);
+void generate_system_matrix_ffs(const struct recon_params * rp, struct ct_data * data);
