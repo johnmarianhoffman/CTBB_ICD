@@ -25,7 +25,7 @@
 #include <vector>
 #include <math.h>
 
-//#include <chrono>
+#include <chrono>
 
 #include <omp.h>
 //#include <boost/numeric/ublas/vector_sparse.hpp>
@@ -38,16 +38,23 @@
 #include "icd_iteration.h"
 #include "penalties.h"
 
+#include "iteration_kernels.cuh"
 #include "icd_iteration_gpu.h"
 #include "gpu_helpers.h"
+
+struct pair{
+    int index;
+    float value;
+};
 
 #define OMP_N_THREADS 11
 
 void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
 
+    // Do this manually for the time being
+    cudaSetDevice(1);
+    cudaDeviceReset();
     query_resources(rp);
-
-    return;
 
     size_t data_size = rp->Readings*rp->n_channels*rp->Nrows_projection;
     
@@ -138,11 +145,7 @@ void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
     std::ofstream sino_file(sino_est_path.str(), std::ios_base::binary);
     sino_file.write((char*)sinogram_estimate, rp->Readings*rp->Nrows_projection*rp->n_channels*sizeof(double));
     sino_file.close();
-    std::cout << "Wrote initial sinogram to disk." << std::endl;    
-
-    //tk end debugging
-
-    //ublas::compressed_vector<float> col(rp->Readings*rp->n_channels*rp->Nrows_projection);
+    std::cout << "Wrote initial sinogram to disk." << std::endl;
 
     // Initialize iterative parameters
     // Current implementation limited to 2D (hard coded)
@@ -154,10 +157,38 @@ void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
     ip.Nz=rp->num_voxels_z;    
     ip.delta  = rp->delta;
 
+    // ==================================================
+    // GPU STUFF 
+    // ==================================================
+    // Allocate our GPU array
+    float * d_sinogram;
+    float * d_sinogram_estimate;
+    float * d_recon_array;
+    float * d_sys_matrix_column;
+
+    cudaMalloc(&d_sinogram,rp->n_channels*rp->Nrows*rp->Readings* sizeof(float));
+    cudaMalloc(&d_sinogram_estimate,rp->n_channels*rp->Nrows*rp->Readings* sizeof(float));
+    cudaMalloc(&d_sys_matrix_column,rp->n_channels*rp->Nrows*rp->Readings*sizeof(pair));    
+    cudaMalloc(&d_recon_array,rp->nx*rp->ny*rp->num_voxels_z*sizeof(float));
+
+    // Copy data to GPU
+    cudaMemcpyToSymbol(d_ip,&ip,sizeof(struct iterative_params),0,cudaMemcpyHostToDevice);
+    //cudaMemcpy(cudaMemcpyHostToDevice);
+
+
+
+
+
+    query_resources(rp);
+
+    // ==================================================
+    // GPU STUFF 
+    // ==================================================
+
     for (int n = 0; n < rp->num_iterations; n++){
         
         std::cout << "Iteration #" << n+1 << std::endl;
-        //        std::chrono::high_resolution_clock::time_point start=std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point start=std::chrono::high_resolution_clock::now();
 
         double fov_limit=(rp->acquisition_fov/2.0)*(rp->acquisition_fov/2.0);
 
@@ -169,22 +200,15 @@ void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
 
                 double x = (i - rp->center_voxel_x)*rp->voxel_size_x;
 
+                // Load column of the system matrix from disk
                 size_t nnz;
-                file.read((char*)&nnz, sizeof(nnz));
-                
+                file.read((char*)&nnz, sizeof(nnz));                
                 int num_nonzeros = (int)nnz; // cast to int to avoid potential issues
-
-                struct pair{
-                    int index;
-                    float value;
-                };
-
-                //std::vector<pair> nonzeros(num_nonzeros);
-
                 struct pair * nonzeros = new struct pair[num_nonzeros];
-
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
+                else
+                    continue;
 
                 if ((x*x + y*y) < fov_limit){
 
@@ -265,9 +289,9 @@ void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
         destroy_spinner();
 
         // Close up our timer
-//        std::chrono::high_resolution_clock::time_point end=std::chrono::high_resolution_clock::now();
-//        auto duration=std::chrono::duration_cast<std::chrono::seconds>(end-start).count();
-//        std::cout << duration << " s" << std::endl;
+        std::chrono::high_resolution_clock::time_point end=std::chrono::high_resolution_clock::now();
+        auto duration=std::chrono::duration_cast<std::chrono::seconds>(end-start).count();
+        std::cout << duration << " s" << std::endl;
 
         // Write reconstruction to disk
         std::ostringstream recon_path;       
@@ -280,6 +304,13 @@ void icd_iteration_gpu(const struct recon_params * rp, struct ct_data * data){
         file.clear();
         file.seekg(0, std::ios_base::beg);        
     }
+
+    cudaFree(d_sinogram);
+    cudaFree(d_sinogram_estimate);
+    cudaFree(d_recon_array);
+    cudaFree(d_sys_matrix_column);
+
+    query_resources(rp);
 
     // Copy the final reconstructed volume back into our data structure
     for (int i=0; i<rp->num_voxels_x; i++){

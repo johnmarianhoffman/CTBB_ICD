@@ -95,10 +95,6 @@ int main(int argc, char ** argv){
     /*--- All parameters now set to final values, map to CONSTANT ---*/
     const struct recon_params rp_const=rp;
 
-    icd_iteration_gpu(&rp_const,&data);
-
-    exit(0);
-    
     /*--- Initialize reconstruction volume (setup.cpp) ---*/
     // Perform wFBP reconstruction if using as input to ICD
     initialize_recon_volume(&rp_const,&data);
@@ -124,7 +120,10 @@ int main(int argc, char ** argv){
     std::cout << "Debug file written to desktop." << std::endl;
 
     /*--- Perform ICD iterations (icd_iteration.cpp) ---*/
-    icd_iteration(&rp_const,&data);
+    if (false)
+        icd_iteration(&rp_const,&data);
+    else
+        icd_iteration_gpu(&rp_const,&data);
 
     /*--- De-rotate our ICD slices (rotate_slices.cpp) ---*/
     rotate_slices_rotating2fixed(&rp_const,&data);

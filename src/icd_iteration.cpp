@@ -177,6 +177,8 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
 
                 if (num_nonzeros > 0)
                     file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
+                else
+                    continue;
 
                 if ((x*x + y*y) < fov_limit){
 
