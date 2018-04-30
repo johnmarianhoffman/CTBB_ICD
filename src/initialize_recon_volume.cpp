@@ -1,3 +1,23 @@
+/* FreeCT_ICD is MBIR CT reconstruction Software */
+/* Copyright (C) 2018  John Hoffman, Stefano Young, Frederic Noo */
+
+/* This program is free software; you can redistribute it and/or */
+/* modify it under the terms of the GNU General Public License */
+/* as published by the Free Software Foundation; either version 2 */
+/* of the License, or (at your option) any later version. */
+
+/* This program is distributed in the hope that it will be useful, */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* GNU General Public License for more details. */
+
+/* You should have received a copy of the GNU General Public License */
+/* along with this program; if not, write to the Free Software */
+/* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. */
+
+/* Questions and comments should be directed to */
+/* jmhoffman@mednet.ucla.edu with "FreeCT_ICD" in the subject line*/
+
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -188,7 +208,7 @@ void build_wfbp_parameter_file(const struct recon_params * rp){
     wfbp_parameter_fid << "Scanner: "                 << "definitionas.scanner"            << std::endl;
     wfbp_parameter_fid << "FileType: "                << rp->FileType                      << std::endl;
     wfbp_parameter_fid << "FileSubType: "             << rp->FileSubType                   << std::endl;
-    wfbp_parameter_fid << "RawOffset: "               << "0.0"                             << std::endl;
+    wfbp_parameter_fid << "RawOffset: "               << rp->RawOffset                     << std::endl;
     wfbp_parameter_fid << "Nx: "                      << rp->nx                            << std::endl;
     wfbp_parameter_fid << "Ny: "                      << rp->ny                            << std::endl;
     wfbp_parameter_fid << "ImageOrientationPatient: " << "N/A"                             << std::endl;
@@ -196,7 +216,7 @@ void build_wfbp_parameter_file(const struct recon_params * rp){
     wfbp_parameter_fid << "RawDataFile: "             << split_filename(rp->sinogram_path) << std::endl;
     wfbp_parameter_fid << "OutputDir: "               << rp->output_dir                    << std::endl;
     wfbp_parameter_fid << "OutputFile: "              << "init_wfbp.img"                   << std::endl;
-    wfbp_parameter_fid << "ReconKernel: "             << "3"                               << std::endl;
+    wfbp_parameter_fid << "ReconKernel: "             << "1"                               << std::endl;
     wfbp_parameter_fid << "SliceThickness: "          << rp->slice_thickness*10.0          << std::endl;
     wfbp_parameter_fid << "AdaptiveFiltration: "      << "1.0"                             << std::endl;
     /// done
