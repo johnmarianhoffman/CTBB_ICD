@@ -1,4 +1,5 @@
 CC=g++
+NVCC=nvcc
 
 ODIR=obj
 
@@ -7,21 +8,27 @@ INCLUDES=-I$(IDIR_RECON)
 
 LOCAL_INCLUDES=recon_structs.h
 
-LIBS=-lm -lyaml-cpp -lfct_read
+LIBS=-lm -lyaml-cpp -lfct_read -lcudart
 
-CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11
+CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11 
+NVCC_FLAGS = -g -DHAVE_CONFIG_H -std=c++11 
 
-_OBJ=main.o parse_config.o setup.o generate_system_matrix.o generate_system_matrix_ffs.o initialize_recon_volume.o icd_iteration.o rotate_slices.o penalties.o
+_OBJ=main.o parse_config.o setup.o \
+generate_system_matrix.o generate_system_matrix_ffs.o \
+initialize_recon_volume.o icd_iteration.o \
+rotate_slices.o penalties.o gpu_helpers.o icd_iteration_gpu.o
+
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ));
 
 all: ../icd
 
 ../icd: object_dir $(OBJ) 
-	(cd obj && $(CC) -g -fopenmp -o ../../icd *.o $(LIBS))
+	(cd obj && $(CC) -g -L/usr/local/cuda/lib64/ -fopenmp -o ../../icd *.o $(LIBS))
 
 object_dir:
 	mkdir -p obj
 
+# Baseline C++ files ()
 obj/main.o: main.cpp recon_structs.h	
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -48,6 +55,14 @@ obj/rotate_slices.o: rotate_slices.cpp rotate_slices.h recon_structs.h interp.h
 
 obj/penalties.o: penalties.cpp penalties.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# GPU acceleration files ()
+
+obj/icd_iteration_gpu.o: icd_iteration_gpu.cu icd_iteration_gpu.h recon_structs.h
+	$(NVCC) $(NVCC_FLAGS) -c -o $@ $<
+
+obj/gpu_helpers.o: gpu_helpers.cu gpu_helpers.h recon_structs.h
+	$(NVCC) $(NVCC_FLAGS) -c -o $@ $<
 
 .PHONY: all test clean object_dir
 

@@ -29,6 +29,7 @@
 #include "generate_system_matrix_ffs.h"
 #include "rotate_slices.h"
 #include "icd_iteration.h"
+#include "icd_iteration_gpu.h"
 
 struct flags {
     bool testing;
@@ -93,6 +94,10 @@ int main(int argc, char ** argv){
 
     /*--- All parameters now set to final values, map to CONSTANT ---*/
     const struct recon_params rp_const=rp;
+
+    icd_iteration_gpu(&rp_const,&data);
+
+    exit(0);
     
     /*--- Initialize reconstruction volume (setup.cpp) ---*/
     // Perform wFBP reconstruction if using as input to ICD
