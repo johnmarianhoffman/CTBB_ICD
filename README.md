@@ -1,12 +1,23 @@
-# FreeCT_ICD
+# CTBB_ICD
 
-## What is FreeCT_ICD?
+## Are you sure you didn't mean FreeCT_ICD?
 
-FreeCT\_ICD is the model-based iterative reconstruction companion software to [FreeCT\_wFBP](https://github.com/FreeCT/FreeCT_wFBP).  It is free software (released under the GNU GPLv2) intended for use in research and education.  Modification and contributions are encouraged.
+The "public" version of the software in this repository can be found at [FreeCT\_ICD](https://github.com/FreeCT/FreeCT_ICD).  This repository is for our "in-house" version and targets a reader library that is not publicly available.  I'm not saying you *can't* work from this project, but you may want the other one...
+
+If you do want to work from here, you'll need to reimplement the reader functions and corresponding library.  There are several ways to do this, but the most portable is probably the following:
+
+1. Change or reimplement: the "ctbb\_read.h" header file (included in setup.cpp)
+2. Write: Your own ctbb\_read.cpp that reimplements the "void Read*Frame..." functions used to load raw data (these functions can be found in setup.cpp)
+3. Compile: Compile your ctbb\_read.cpp into a ctbb\_read.a and put on the library load path
+4. Modify the makefile: Link with -lctbb\_read (or whatever you change the name to)
+
+## What is CTBB_ICD?
+
+CTBB\_ICD is the model-based iterative reconstruction companion software to [CTBangBang](https://github.com/captnjohnny1618/CTBangBang).  It is free software (released under the GNU GPLv2) intended for use in research and education.  Modification and contributions are encouraged.
 
 ### Quick (Science) Facts:
 
-FreeCT_ICD...
+CTBB_ICD...
 
 * Reconstructs third-generation, helical, diagnostic, multidector CT data (without gantry tilt)
 * Uses **iterative coordinate descent** as an optimizer
@@ -23,7 +34,7 @@ FreeCT_ICD...
 
 ## What it is not
 
-### FreeCT_ICD is not what the manufacturers use
+### CTBB_ICD is not what the manufacturers use
 
 While our algorithms are based off of publications that are perhaps relevant to some of the current algorithms used in industry, they are not the algorithms used on clinical CT scanners and we make no claims to the similarity between our reconstructed images and what is arrived at clinically. In fact, moreso than FreeCT\_wFBP, FreeCT\_ICD employs a unique forward projector that has not been previously published.
 
@@ -31,19 +42,19 @@ Work has been done to objectively evaluate the quality of our reconstructions.  
 
 *(insert link to technical note and/or whitepaper)* (**Coming soon**)
 
-### FreeCT_ICD is not a library
+### CTBB_ICD is not a library
 
-There are many great reconstruction libraries out there (http://conrad.stanford.edu/, http://www.openrtk.org/ to name two), and perhaps one day FreeCT_ICD will be recast as a library.  Currently however, it is not a library, it a program.
+There are many great reconstruction libraries out there (http://conrad.stanford.edu/, http://www.openrtk.org/ to name two), and perhaps one day CTBB_ICD will be recast as a library.  Currently however, it is not a library, it a program.
 
 It is structured modularly, so that major subsections of the reconstruction process are easy to identify/customize/edit/etc. so there are library-like qualities to the project to make it easy to use.
 
-FreeCT_ICD is designed to be compiled and run to reconstruct projection data from start to finish.
+CTBB_ICD is designed to be compiled and run to reconstruct projection data from start to finish.
 
 ## Versions
 
-The latest working version can be found on GitHub at https://github.com/FreeCT/FreeCT_ICD
+The latest working version can be found on GitHub at https://github.com/captnjohnny1618/CTBB_ICD
 
-Bleeding edge updates can be found at https://github.com/FreeCT/FreeCT_ICD/tree/develop
+Bleeding edge updates can be found at https://github.com/captnjohnny1618/CTBB_ICD/tree/develop
 
 ## Installation
 
