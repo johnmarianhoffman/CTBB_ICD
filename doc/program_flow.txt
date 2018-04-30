@@ -1,0 +1,162 @@
+This file is intended to provide a high-level overview of how the ICD
+code runs (which functions are called and where those functions live).
+
+****************************************
+
+John's Note:
+
+I'm looking at the code and the only *real* reason that
+we're leveraging the BOOST ublas stuff is because it's tough to
+predict how much memory to allocate for a given column of the matrix.
+The system matrix is stored as an (Nx x Ny) vector of
+ublas::compressed_vector<float>s.  Each "element" of the system matrix
+array (a full ublas vector) is immediatedly "resized" to (Nreadings x
+Nchannels x Nrows).  The cleverness here is that that move does not
+actually allocate the memory.  It allocates *some* memory, but not all
+of it (otherwise we'd run out very very quickly).
+
+We could try and port away from the ublas compressed vector format,
+however given that we ditch it immediately after we have the full
+system matrix, I see no reason to really bother.  BOOST is ubiquitous
+enough... maybe.  I still don't love it.
+
+In terms of acceleration with a GPU, I have managed to port everything
+away from classes, so we wouldn't have to worry too much about that.
+We're kind of "ready to go" so to speak to start playing around on the
+GPU without too much heartache.
+
+****************************************
+
+========================================
+Main.cpp
+========================================
+(1) Parse Inputs:
+    (a) command line options (main.cpp)
+    (b) Parameter file (setup.cpp)
+
+(2) Fetch the raw data from file (setup.cpp)
+
+*** Parameters are "locked" in (map everything to a constant struct for the rest of the program)
+
+(3) Initialize reconstructed volume (setup.cpp)
+    Either all zeros or to an aligned wFBP reconstruction.
+
+(4) Generate the system matrix (generate_system_matrix.cpp or generate_system_matrix_ffs.cpp)
+
+(5) Perform requested ICD iterations (icd_iteration.cpp)
+
+(6) Final derotation of slices (rotate_slices.cpp)
+
+(7) Clean up (memory, matrices, etc.)
+
+========================================
+generate_system_matrix.cpp
+========================================
+
+(1) Allocate the stuff that we'll need including matrix, source
+vectors, unit vectors, etc.
+
+(2) Generate the system matrix
+
+(2a) Loop over n_views_system_matrix ("for each projection that can 'see' the current slice...")
+     Note: n_views_system_matrix is typically just over the number of
+     views per rotation (we want to capture the full "shadow" of each
+     voxel)
+
+     Set the source position
+
+(2b) Loop over the number of channels in the detector
+
+     Set the transaxial angle and position. Compute sines and
+     cosines.
+
+     (John's Note: Figure out what we mean by "transaxial..."  meaning
+     seems to change depending on whoever is saying that word.  Also,
+     the usage we have in ICD feels reversed of what it should be.)
+
+(2c) Loop over the number of rows in the detector
+     
+     Compute direction cosines between source and detector
+
+(2d) Loop over voxels in the central slice (only one slice since we're using rotating geometry)
+
+     Josephs method to compute ray contribution to voxel.  (Will write more on this later.)
+
+========================================
+icd_iteration.cpp
+========================================
+
+(0) Initialize sinogram estimate
+
+This is only done if we initialized with a wFBP reconstruction.  This
+performs one full forward projection through the reconstructed volume.
+Forward projection is done in the same manner as later in the code for
+voxel updates.
+
+If you just want a quick overview of our update order, this is a good
+place to start.
+
+* Loop order is the following (outer to inner):
+     Y voxels,
+       X voxels,
+         Z voxels,
+           Non-zero system matrix elements (size_t nnz, int num_nonzeros)
+             {Core inner loop code below}
+
+* Core inner loop code:
+
+                    (Note that offset is calculated just outside of the inner loop.  We provide here for context.)
+                    
+                    int offset = (central_idx - rp->num_views_for_system_matrix/2)*rp->n_channels*rp->Nrows_projection; // offset is a projection index
+
+                        int index = nonzeros[m].index + offset; // Raw data index
+                        if ((index > -1) && (index < data_size)){
+                            size_t voxel_idx=i+j*rp->num_voxels_x+k*rp->num_voxels_x*rp->num_voxels_y;
+                            sinogram_estimate[index] = sinogram_estimate[index] + reconstructed_image[voxel_idx]*nonzeros[m].value;
+                        }
+
+(1) Do iterations (i.e. loop over n_iterations, or in the future "while (!stopping_criteria){...}")
+
+    This is a big loop, so we'll break it down into smaller bits
+
+(1a) Loop over Y voxels
+
+(1b) Loop over X voxels
+
+     Compute spatial position of voxel being updated and determine if
+     we're inside of our FOV.
+
+     Load column of our system matrix from disk.
+
+            * Code snippet to load a column of our matrix from disk:
+            {
+                size_t nnz;
+                file.read((char*)&nnz, sizeof(nnz));
+                
+                int num_nonzeros = (int)nnz; // cast to int to avoid potential issues
+
+                struct pair{
+                    int index;
+                    float value;
+                };
+
+                struct pair * nonzeros = new struct pair[num_nonzeros];
+
+                if (num_nonzeros > 0)
+                    file.read((char*)&nonzeros[0], num_nonzeros*sizeof(pair));
+            }
+
+
+(1c) Loop over Z voxels
+
+     Loop over all non-zero matrix voxels (for current column)
+          Compute ALPHA and BETA *** OpenMP accelerated reduction ***
+
+     With alpha and beta now computed, calculate the penalty
+
+     Enforce positivity
+
+     Add the pixel update to the current voxel
+
+     Loop over all non-zero matrix voxels (for current column)
+          Update the forward projected data *** OpenMP accerated ***
