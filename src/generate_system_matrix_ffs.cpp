@@ -46,11 +46,6 @@ void print_vector(ublas::vector<double> vec){
     std::cout << vec(0) << "," << vec(1) << "," << vec(2) << std::endl;
 };
 
-struct pair{
-    int index;
-    float value;
-};
-
 ublas::vector<double> generate_ffs_offset(int proj_idx,double da, double dr, double anode_angle, int ZFFS, int PHIFFS,ublas::vector<double> radial,ublas::vector<double> anti_radial,ublas::vector<double>e_z);
 
 // Defined in generate_system_matrix.cpp (code available at bottom of this file however)

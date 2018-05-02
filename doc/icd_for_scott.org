@@ -1,0 +1,47 @@
+* Github:
+
+https://github.com/captnjohnny1618/CTBB_ICD
+
+* Branching/forking:
+
+I always forget that another option (in addition what we discussed) could be for you to fork the code into your own project, and then create a pull request if we want to integrate any new developments back into the full code base.
+
+* Reader functions
+
+CTBB_ICD (as opposed to FreeCT_ICD) uses our reader library (linked in the Makefile as -lctbb_read) that can target proprietary Siemens files.  It is already built and installed on Aurora and Casanova, both of which you should be able to SSH into with your login credentials.  If need be, I think Mitch can make you an admin on either machine.
+
+If you need to build the library on another machine, I can get you the source code.
+
+* Test data
+
+Can be found at: 
+
+Aurora:/data/ellipse_phantoms/  
+(\\aurora\data\ellipse_phantoms on Windows)
+
+The input file that's best/fastest for testing whether code runs and/or is accurate is "ellipse_nffs_010.yaml."
+
+The will reconstruct the data found in the ellipse_nffs_010.dat file.  If you take a quick look at the ellipse_nffs_010.yaml input file, the other paths that are utilized by the reconstruction software should be pretty self-explanatory.
+
+The only thing to be aware of is that if you change the system geometry at all (which you don't need to do I don't think for just testing speed), the matrix.bin file needs to be recreated.  To do this just make sure that you delete any existing matrix.bin file.
+
+* Building the code:
+
+Clone the repo:
+========================================
+$ git clone git@github.com:captnjohnny1618/CTBB_ICD.git
+
+Build the code:
+========================================
+$ cd CTBB_ICD
+$ make
+
+The above commands should create an executable in the CTBB_ICD directory called "icd."  
+
+Calling convention is:
+========================================
+$ ./icd /path/to/input_file.yaml
+
+So, for example, if you're on Aurora you should do the following:
+$ ./icd /data/ellipse_phantoms/ellipse_nffs_010.yaml
+

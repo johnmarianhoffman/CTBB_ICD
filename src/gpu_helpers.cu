@@ -44,3 +44,31 @@ void query_resources(const struct recon_params * rp){
     std::cout << "System matrices:          " << (int)((float)free/(float)(matrix_size)) << " ("<< (matrix_size/MB) << " MB)" << std::endl;
 
 }
+
+dim3 get_max_threads(int device){
+
+    struct cudaDeviceProp properties;
+
+    cudaGetDeviceProperties(&properties,device);
+    
+    dim3 allowed_threads;
+
+    allowed_threads.x=properties.maxThreadsDim[0];
+    allowed_threads.y=properties.maxThreadsDim[1];
+    allowed_threads.z=properties.maxThreadsDim[2];    
+    
+    return allowed_threads;   
+}
+
+void get_thread_and_block_dims(int device, dim3 desired,dim3 * thread_dims, dim3 * block_dims){
+    struct cudaDeviceProp properties;
+
+    cudaGetDeviceProperties(&properties,device);
+
+    dim3 allowed_threads;
+    dim3 allowed_blocks;
+
+
+    
+
+}

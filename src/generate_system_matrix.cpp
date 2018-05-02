@@ -43,11 +43,6 @@ namespace ublas = boost::numeric::ublas;
 
 #define debug_disp(VARIABLE_NAME) std::cout << #VARIABLE_NAME": " << VARIABLE_NAME << std::endl;
 
-struct pair{
-    int index;
-    float value;
-};
-
 void save_system_matrix_first_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block);
 void       save_system_matrix_block(const struct recon_params * rp,std::vector<ublas::compressed_vector<float>> & system_matrix_block);
 

@@ -123,3 +123,23 @@ struct ct_data{
     double * slice_locations;
     size_t * slice_indices;
 };
+
+struct pair{
+    int index;
+    float value;
+};
+
+
+struct iterative_params{
+    size_t Nx;
+    size_t Ny;
+    size_t Nz;
+    double alpha;
+    double beta;
+    double lambda;
+    double delta;
+    int num_neighbors;
+    double * weights;
+    double weights_scale;
+    double n_elem_sinogram;
+};

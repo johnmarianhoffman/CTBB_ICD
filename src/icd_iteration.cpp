@@ -44,15 +44,15 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     size_t data_size = rp->Readings*rp->n_channels*rp->Nrows_projection;
     
     // Allocate sinogram estimate (all zeros)
-    double * sinogram_estimate = new double[rp->Readings*rp->n_channels*rp->Nrows_projection]();
-    double * reconstructed_image= new double[rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z];
+    float * sinogram_estimate = new  float[rp->Readings*rp->n_channels*rp->Nrows_projection]();
+    float * reconstructed_image= new float[rp->num_voxels_x*rp->num_voxels_y*rp->num_voxels_z];
 
     // Copy the float recon volume into the vector array (if uninitialized, will just copy zeros);
     for (int i=0; i<rp->num_voxels_x; i++){
         for (int j=0; j<rp->num_voxels_y; j++){
             for (int k=0; k<rp->num_voxels_z; k++){
                 size_t idx=i+j*rp->num_voxels_x+k*rp->num_voxels_x*rp->num_voxels_y;
-                reconstructed_image[idx]=(double)data->recon_volume[idx];
+                reconstructed_image[idx]=data->recon_volume[idx];
             }
         }
     }
@@ -128,7 +128,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
     std::ostringstream sino_est_path;       
     sino_est_path << rp->output_dir << "/reconstructions/sino_estimation" << ".rcn";
     std::ofstream sino_file(sino_est_path.str(), std::ios_base::binary);
-    sino_file.write((char*)sinogram_estimate, rp->Readings*rp->Nrows_projection*rp->n_channels*sizeof(double));
+    sino_file.write((char*)sinogram_estimate, rp->Readings*rp->Nrows_projection*rp->n_channels*sizeof(float));
     sino_file.close();
     std::cout << "Wrote initial sinogram to disk." << std::endl;    
 
@@ -208,7 +208,7 @@ void icd_iteration(const struct recon_params * rp, struct ct_data * data){
                                 
                                 if ((index > -1) && (index < data_size)){
                                     alpha += nonzeros[m].value * nonzeros[m].value;
-                                    beta  += nonzeros[m].value * ((double)data->raw[index] - sinogram_estimate[index]);
+                                    beta  += nonzeros[m].value * (data->raw[index] - sinogram_estimate[index]);
                                 }                                
                             }
                         }

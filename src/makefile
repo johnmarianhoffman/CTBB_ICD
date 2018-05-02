@@ -8,10 +8,15 @@ INCLUDES=-I$(IDIR_RECON)
 
 LOCAL_INCLUDES=recon_structs.h
 
-LIBS=-lm -lyaml-cpp -lfct_read -lcudart
+LIBS=-lm -lyaml-cpp -lctbb_read -lcudart
 
 CFLAGS=-g -DHAVE_CONFIG_H -std=gnu++11 
 NVCC_FLAGS = -g -DHAVE_CONFIG_H -std=c++11 
+
+ARCH= -gencode arch=compute_30,code=sm_30 \
+      -gencode arch=compute_35,code=sm_35 \
+      -gencode arch=compute_50,code=[sm_50,compute_50] \
+      -gencode arch=compute_52,code=[sm_52,compute_52]
 
 _OBJ=main.o parse_config.o setup.o \
 generate_system_matrix.o generate_system_matrix_ffs.o \
@@ -58,11 +63,11 @@ obj/penalties.o: penalties.cpp penalties.h
 
 # GPU acceleration files ()
 
-obj/icd_iteration_gpu.o: icd_iteration_gpu.cu icd_iteration_gpu.h recon_structs.h
-	$(NVCC) $(NVCC_FLAGS) -c -o $@ $<
+obj/icd_iteration_gpu.o: icd_iteration_gpu.cu icd_iteration_gpu.h recon_structs.h iteration_kernels.cuh
+	$(NVCC) $(ARCH) $(NVCC_FLAGS) -c -o $@ $<
 
 obj/gpu_helpers.o: gpu_helpers.cu gpu_helpers.h recon_structs.h
-	$(NVCC) $(NVCC_FLAGS) -c -o $@ $<
+	$(NVCC) $(ARCH) $(NVCC_FLAGS) -c -o $@ $<
 
 .PHONY: all test clean object_dir
 
